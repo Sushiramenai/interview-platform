@@ -1,0 +1,17 @@
+{
+  "role": "Product Manager",
+  "traits": ["strategic", "analytical", "customer-focused", "leadership"],
+  "questions": [
+    "How do you prioritize features when everything seems important?",
+    "Tell me about a product you've successfully launched.",
+    "How do you gather and incorporate user feedback?",
+    "What metrics do you use to measure product success?",
+    "How do you work with engineering teams?"
+  ],
+  "behavioral_questions": [
+    "Tell me about a time when you had to say no to a stakeholder request.",
+    "Describe a product decision that didn't go as planned. What did you learn?",
+    "Give an example of how you've used data to drive a product decision.",
+    "Tell me about a time you had to manage conflicting priorities."
+  ]
+}

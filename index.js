@@ -49,30 +49,16 @@ app.use(session({
   saveUninitialized: true
 }));
 
-// Check if platform is initialized, redirect to setup if not
-app.use(async (req, res, next) => {
-  const isInitialized = await configManager.isInitialized();
-  const isAuthRoute = req.path.startsWith('/login') || req.path.startsWith('/api/auth');
-  const isAdminRoute = req.path.startsWith('/admin') || req.path.startsWith('/api/') && !req.path.startsWith('/api/auth');
-  const isSetupRoute = req.path.startsWith('/setup') || req.path.startsWith('/api/config');
-  const isStaticResource = req.path.includes('.');
-  
-  // Allow auth routes always
-  if (isAuthRoute || isStaticResource) {
-    return next();
-  }
-  
-  // If not initialized and trying to access admin or API routes, redirect to setup
-  if (!isInitialized && (isAdminRoute || req.path === '/')) {
-    return res.redirect('/setup');
-  }
-  
+// Simple middleware - just check authentication for protected routes
+app.use((req, res, next) => {
+  // No initialization checks - let admin decide when to configure
   next();
 });
 
 // Routes
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'src/ui/landing.html'));
+  // Redirect to login as the main entry point
+  res.redirect('/login');
 });
 
 app.get('/setup', async (req, res) => {
@@ -87,15 +73,17 @@ app.get('/interview', (req, res) => {
   res.sendFile(path.join(__dirname, 'src/ui/interview.html'));
 });
 
+app.get('/candidate', (req, res) => {
+  // This is the actual candidate-facing interview page
+  res.sendFile(path.join(__dirname, 'src/ui/landing.html'));
+});
+
 app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'src/ui/login.html'));
 });
 
-app.get('/admin', AuthMiddleware.requireAdmin, async (req, res) => {
-  const isInitialized = await configManager.isInitialized();
-  if (!isInitialized) {
-    return res.redirect('/setup');
-  }
+app.get('/admin', AuthMiddleware.requireAdmin, (req, res) => {
+  // Let admin access dashboard directly - they can configure API keys from there
   res.sendFile(path.join(__dirname, 'src/ui/admin.html'));
 });
 

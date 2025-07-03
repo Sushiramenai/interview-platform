@@ -139,6 +139,9 @@
             <!-- Interviews Section -->
             <div id="interviews" class="section active">
                 <h2>Recent Interviews</h2>
+                <div id="api-warning" style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; margin-bottom: 20px; border-radius: 6px; display: none;">
+                    <strong>⚠️ Setup Required:</strong> Please configure your API keys in the <a href="#" onclick="showSection('api-config'); return false;">API Configuration</a> section to enable interviews.
+                </div>
                 <table id="interviews-table">
                     <thead>
                         <tr>
@@ -162,6 +165,13 @@
             <div id="roles" class="section">
                 <h2>Role Templates</h2>
                 <button class="btn btn-primary" onclick="showNewRoleForm()">Add New Role</button>
+                
+                <div style="background: #e3f2fd; padding: 15px; margin: 20px 0; border-radius: 6px;">
+                    <strong>📋 How to share interview links:</strong><br>
+                    Share this URL with candidates: <code id="interview-url" style="background: white; padding: 2px 6px; border-radius: 3px;"></code>
+                    <button class="btn" onclick="copyInterviewUrl()" style="padding: 4px 12px; margin-left: 10px;">Copy</button>
+                </div>
+                
                 <div id="roles-list" style="margin-top: 20px;">
                     Loading roles...
                 </div>
@@ -262,6 +272,15 @@
             } catch (error) {
                 window.location.href = '/login';
             }
+        }
+
+        // Show specific section
+        function showSection(sectionName) {
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            
+            document.querySelector(`[data-section="${sectionName}"]`).classList.add('active');
+            document.getElementById(sectionName).classList.add('active');
         }
 
         async function logout() {
@@ -443,8 +462,11 @@
                 const response = await fetch('/api/config/keys');
                 const keys = await response.json();
                 
+                let hasClaudeKey = false;
+                
                 if (keys.CLAUDE_API_KEY) {
                     document.getElementById('claude-key').value = '••••••••' + keys.CLAUDE_API_KEY.substr(-4);
+                    hasClaudeKey = true;
                 }
                 if (keys.GOOGLE_CREDENTIALS) {
                     document.getElementById('google-creds').value = '{ ... }';
@@ -455,8 +477,19 @@
                 if (keys.RECALL_API_KEY) {
                     document.getElementById('recall-key').value = '••••••••' + keys.RECALL_API_KEY.substr(-4);
                 }
+                
+                // Show warning if Claude API key is not configured
+                const warning = document.getElementById('api-warning');
+                if (warning) {
+                    warning.style.display = hasClaudeKey ? 'none' : 'block';
+                }
             } catch (error) {
                 console.error('Error loading API keys:', error);
+                // Show warning on error
+                const warning = document.getElementById('api-warning');
+                if (warning) {
+                    warning.style.display = 'block';
+                }
             }
         }
 
@@ -534,12 +567,34 @@
             }
         }
 
+        // Copy interview URL
+        function copyInterviewUrl() {
+            const urlElement = document.getElementById('interview-url');
+            const tempInput = document.createElement('input');
+            tempInput.value = urlElement.textContent;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = '✓ Copied!';
+            setTimeout(() => {
+                btn.textContent = originalText;
+            }, 2000);
+        }
+
         // Initialize
         checkAuth();
         loadInterviews();
         loadRoles();
         loadSettings();
         loadApiKeys();
+        
+        // Set interview URL
+        const baseUrl = window.location.origin;
+        document.getElementById('interview-url').textContent = `${baseUrl}/candidate?role=ROLE_NAME`;
     </script>
 </body>
 </html>

@@ -1,0 +1,17 @@
+{
+  "role": "Software Engineer",
+  "traits": ["technical", "problem-solver", "collaborative", "detail-oriented"],
+  "questions": [
+    "Tell me about your experience with software development.",
+    "What programming languages are you most proficient in?",
+    "Describe a challenging technical problem you solved recently.",
+    "How do you approach debugging complex issues?",
+    "What's your experience with agile development methodologies?"
+  ],
+  "behavioral_questions": [
+    "Tell me about a time when you had to work under a tight deadline.",
+    "Describe a situation where you disagreed with a technical decision. How did you handle it?",
+    "Give an example of when you had to learn a new technology quickly.",
+    "Tell me about a time you mentored a junior developer."
+  ]
+}
