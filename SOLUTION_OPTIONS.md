@@ -1,5 +1,18 @@
 # Solution Options for API Save and Interview Start Issues
 
+## Latest Update: Network Error Fix
+
+### If you get "Network error saving API keys":
+
+This is likely due to the server response not being properly parsed. The system is now updated to handle this better.
+
+**Quick Fix:**
+```bash
+node setup-api-keys.js
+```
+
+This bypasses the web UI entirely and saves keys directly.
+
 ## Issue 1: "Error saving API keys"
 
 ### Option A: Direct Database Setup (Easiest) ✅

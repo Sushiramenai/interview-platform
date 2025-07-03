@@ -18,10 +18,7 @@ class ServiceInitializer {
             process.env.ELEVENLABS_API_KEY = apiKeys.ELEVENLABS_API_KEY;
             process.env.ENABLE_VOICE = 'true';
         }
-        if (apiKeys.RECALL_API_KEY) {
-            process.env.RECALL_API_KEY = apiKeys.RECALL_API_KEY;
-            process.env.ENABLE_RECORDING = 'true';
-        }
+        
         
         return service;
     }
@@ -51,12 +48,7 @@ class ServiceInitializer {
         if (apiKeys.ELEVENLABS_API_KEY) {
             process.env.ENABLE_VOICE = 'true';
         }
-        if (apiKeys.RECALL_API_KEY) {
-            process.env.ENABLE_RECORDING = 'true';
-            // Set webhook URL for Recall.ai
-            const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
-            process.env.RECALL_WEBHOOK_URL = `${baseUrl}/api/webhooks/recall`;
-        }
+        
     }
 }
 

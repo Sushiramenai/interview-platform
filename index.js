@@ -13,7 +13,6 @@ const AuthMiddleware = require('./src/middleware/auth');
 const ConfigManager = require('./src/utils/config_manager');
 const ServiceInitializer = require('./src/utils/service_initializer');
 const AutomatedInterviewSystem = require('./src/logic/automated_interview_system');
-const VideoInterviewOrchestrator = require('./src/logic/video_interview_orchestrator');
 const ManualInterviewOrchestrator = require('./src/logic/manual_interview_orchestrator');
 const SelfHostedInterviewOrchestrator = require('./src/logic/self_hosted_interview_orchestrator');
 
@@ -24,8 +23,7 @@ const PORT = process.env.PORT || 3000;
 const configManager = new ConfigManager();
 
 // Initialize services after config
-let interviewAI, evaluator, meetGenerator, driveUploader, automatedInterviewSystem, videoInterviewOrchestrator, manualInterviewOrchestrator, selfHostedInterviewOrchestrator;
-
+let interviewAI, evaluator, meetGenerator, driveUploader, automatedInterviewSystem, manualInterviewOrchestrator, selfHostedInterviewOrchestrator;
 async function initializeServices() {
   await configManager.initialize();
   await ServiceInitializer.initializeAllServices(configManager);
@@ -35,8 +33,7 @@ async function initializeServices() {
   meetGenerator = new MeetGenerator();
   driveUploader = new DriveUploader();
   automatedInterviewSystem = new AutomatedInterviewSystem();
-  videoInterviewOrchestrator = new VideoInterviewOrchestrator();
-  manualInterviewOrchestrator = new ManualInterviewOrchestrator();
+    manualInterviewOrchestrator = new ManualInterviewOrchestrator();
   selfHostedInterviewOrchestrator = new SelfHostedInterviewOrchestrator();
 }
 
@@ -475,24 +472,6 @@ app.get('/api/interviews/:uuid', async (req, res) => {
 });
 
 // Automated Interview API Routes
-app.get('/api/interview/check-status', async (req, res) => {
-  try {
-    const { email, role } = req.query;
-    
-    if (!email || !role) {
-      return res.status(400).json({ error: 'Email and role are required' });
-    }
-    
-    const interviewTracker = videoInterviewOrchestrator.interviewTracker;
-    const status = await interviewTracker.getInterviewStatus(email, role);
-    
-    res.json(status);
-  } catch (error) {
-    console.error('Error checking interview status:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 app.post('/api/interview/automated/start', async (req, res) => {
   try {
     const { candidateName, email, role } = req.body;
@@ -511,7 +490,6 @@ app.post('/api/interview/automated/start', async (req, res) => {
     
     // Check API keys from ConfigManager
     const apiKeys = await configManager.getApiKeys();
-    const hasRecallAI = !!apiKeys.RECALL_API_KEY;
     const hasElevenLabs = !!apiKeys.ELEVENLABS_API_KEY;
     const hasGoogleCreds = !!apiKeys.GOOGLE_CREDENTIALS;
     const hasClaude = !!apiKeys.CLAUDE_API_KEY;
@@ -519,8 +497,7 @@ app.post('/api/interview/automated/start', async (req, res) => {
     console.log('API key status:', {
       claude: hasClaude,
       google: hasGoogleCreds,
-      elevenlabs: hasElevenLabs,
-      recall: hasRecallAI
+      elevenlabs: hasElevenLabs
     });
     
     if (!hasClaude || !hasGoogleCreds || !hasElevenLabs) {
@@ -540,28 +517,13 @@ app.post('/api/interview/automated/start', async (req, res) => {
     const roleSlug = role.toLowerCase().replace(/\s+/g, '_');
     
     try {
-      let result;
-      
-      if (hasRecallAI) {
-        // Use Recall.ai bot (expensive option)
-        console.log('Starting interview with Recall.ai mode');
-        result = await videoInterviewOrchestrator.startVideoInterview(
-          candidateName,
-          email,
-          roleSlug
-        );
-      } else if (hasElevenLabs) {
-        // Use self-hosted bot with ElevenLabs voice
-        console.log('Starting interview with self-hosted bot mode');
-        result = await selfHostedInterviewOrchestrator.startVideoInterview(
-          candidateName,
-          email,
-          roleSlug
-        );
-      } else {
-        // This shouldn't happen as we check for ElevenLabs above
-        throw new Error('ElevenLabs is required but not configured');
-      }
+      // Always use self-hosted bot mode
+      console.log('Starting interview with self-hosted bot mode');
+      const result = await selfHostedInterviewOrchestrator.startVideoInterview(
+        candidateName,
+        email,
+        roleSlug
+      );
       
       console.log('Interview started successfully:', result.sessionId);
       
@@ -570,7 +532,7 @@ app.post('/api/interview/automated/start', async (req, res) => {
         meetUrl: result.meetUrl,
         instructions: result.instructions,
         status: 'ready',
-        mode: hasRecallAI ? 'recall-ai' : 'self-hosted-bot'
+        mode: 'self-hosted-bot'
       });
       
     } catch (innerError) {
@@ -727,20 +689,7 @@ app.get('/api/interview/guide/:sessionId', async (req, res) => {
   }
 });
 
-// Webhook endpoint for Recall.ai
-app.post('/api/webhooks/recall', async (req, res) => {
-  try {
-    console.log('Recall webhook received:', req.body.event);
-    
-    const recallService = meetGenerator.recallService;
-    await recallService.processWebhook(req.body);
-    
-    res.json({ received: true });
-  } catch (error) {
-    console.error('Webhook processing error:', error);
-    res.status(500).json({ error: 'Webhook processing failed' });
-  }
-});
+
 
 // Serve uploaded files (for local storage)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

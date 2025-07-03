@@ -171,7 +171,7 @@
             <div id="interviews" class="section">
                 <h2>Recent Interviews</h2>
                 <div id="api-warning" style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; margin-bottom: 20px; border-radius: 6px; display: none;">
-                    <strong>⚠️ Setup Required:</strong> Please configure ALL required API keys (Claude, Google, ElevenLabs, Recall.ai) in the <a href="#" onclick="showSection('api-config'); return false;">API Configuration</a> section to enable video interviews.
+                    <strong>⚠️ Setup Required:</strong> Please configure ALL required API keys (Claude, Google, ElevenLabs) in the <a href="#" onclick="showSection('api-config'); return false;">API Configuration</a> section to enable video interviews.
                 </div>
                 <table id="interviews-table">
                     <thead>
@@ -260,6 +260,9 @@
                     <div id="status-indicators">Checking services...</div>
                 </div>
                 
+                
+                
+                
                 <div style="background: #f8f9fa; padding: 20px; margin-bottom: 30px; border-radius: 8px;">
                     <h3>Claude AI</h3>
                     <p>Powers the AI interviewer and evaluation</p>
@@ -289,18 +292,6 @@
                         <button class="btn" onclick="testApiKey('elevenlabs')" style="width: 100px; margin-left: 10px;">Test</button>
                     </div>
                 </div>
-                
-                <div style="background: #f8f9fa; padding: 20px; margin-bottom: 30px; border-radius: 8px;">
-                    <h3>Recall.ai <span style="color: #ffc107;">(Optional - Enables AI Bot)</span></h3>
-                    <p>Video recording and AI bot for Google Meet</p>
-                    <p style="color: #666; font-size: 14px;">Without this, interviews will use manual mode with human interviewers</p>
-                    <div class="form-group">
-                        <label>API Key</label>
-                        <input type="password" id="recall-key" placeholder="Your API key (optional)" style="width: calc(100% - 120px);">
-                        <button class="btn" onclick="testApiKey('recall')" style="width: 100px; margin-left: 10px;">Test</button>
-                    </div>
-                </div>
-                
                 <button class="btn btn-primary" onclick="saveApiKeys()">Save All API Keys</button>
             </div>
         </div>
@@ -605,7 +596,6 @@
                 let hasClaudeKey = false;
                 let hasGoogleCreds = false;
                 let hasElevenLabsKey = false;
-                let hasRecallKey = false;
                 
                 if (keys.CLAUDE_API_KEY) {
                     document.getElementById('claude-key').value = '••••••••' + keys.CLAUDE_API_KEY.substr(-4);
@@ -619,18 +609,13 @@
                     document.getElementById('elevenlabs-key').value = '••••••••' + keys.ELEVENLABS_API_KEY.substr(-4);
                     hasElevenLabsKey = true;
                 }
-                if (keys.RECALL_API_KEY) {
-                    document.getElementById('recall-key').value = '••••••••' + keys.RECALL_API_KEY.substr(-4);
-                    hasRecallKey = true;
-                }
-                
-                // Update system status
-                updateSystemStatus(hasClaudeKey, hasGoogleCreds, hasElevenLabsKey, hasRecallKey);
+                                // Update system status
+                updateSystemStatus(hasClaudeKey, hasGoogleCreds, hasElevenLabsKey);
                 
                 // Show warning if any required key is not configured
                 const warning = document.getElementById('api-warning');
                 if (warning) {
-                    const allConfigured = hasClaudeKey && hasGoogleCreds && hasElevenLabsKey && hasRecallKey;
+                    const allConfigured = hasClaudeKey && hasGoogleCreds && hasElevenLabsKey;
                     warning.style.display = allConfigured ? 'none' : 'block';
                 }
             } catch (error) {
@@ -640,16 +625,16 @@
                 if (warning) {
                     warning.style.display = 'block';
                 }
-                updateSystemStatus(false, false, false, false);
+                updateSystemStatus(false, false, false);
             }
         }
         
-        function updateSystemStatus(claude, google, elevenlabs, recall) {
+        function updateSystemStatus(claude, google, elevenlabs) {
             const statusDiv = document.getElementById('status-indicators');
             if (!statusDiv) return;
             
             const requiredConfigured = claude && google && elevenlabs;
-            const allConfigured = requiredConfigured && recall;
+            const allConfigured = requiredConfigured;
             
             statusDiv.innerHTML = `
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
@@ -663,15 +648,15 @@
                         ${elevenlabs ? '✅' : '❌'} ElevenLabs ${elevenlabs ? 'Configured' : 'Missing (Required)'}
                     </div>
                     <div>
-                        ${recall ? '✅' : '⚠️'} Recall.ai ${recall ? 'Configured' : 'Not configured (Optional)'}
+                        ${false ? '✅' : '⚠️'} Recall.ai ${false ? 'Configured' : 'Not configured (Optional)'}
                     </div>
                 </div>
                 <div style="padding: 10px; background: ${allConfigured ? '#d4edda' : requiredConfigured ? '#d1ecf1' : '#f8d7da'}; color: ${allConfigured ? '#155724' : requiredConfigured ? '#0c5460' : '#721c24'}; border-radius: 5px;">
-                    ${allConfigured ? '✅ All systems ready - Premium AI bot interviews (Recall.ai)' : 
+                    ${allConfigured ? '✅ All systems ready - AI bot interviews with voice synthesis' : 
                       requiredConfigured ? '🤖 Self-hosted AI bot active - Interviews conducted by AI with voice synthesis' : 
                       '❌ System not ready - Please configure required services'}
                 </div>
-                ${requiredConfigured && !recall ? `
+                ${requiredConfigured && !false ? `
                 <div style="margin-top: 10px; padding: 10px; background: #e7f3ff; color: #004085; border-radius: 5px; font-size: 14px;">
                     <strong>Current Mode:</strong> AI bot will join Google Meet and conduct interviews using ElevenLabs voice.
                     <br>Note: Without Recall.ai, video recording is not available.
@@ -680,6 +665,7 @@
             `;
         }
 
+        
         
         async function saveApiKeys() {
             console.log('Starting API key save...');
@@ -690,20 +676,23 @@
             const claudeValue = document.getElementById('claude-key').value.trim();
             const googleValue = document.getElementById('google-creds').value.trim();
             const elevenValue = document.getElementById('elevenlabs-key').value.trim();
-            const recallValue = document.getElementById('recall-key').value.trim();
             
             // Only include non-masked values
             if (claudeValue && !claudeValue.includes('••••')) {
                 keys.claude_api_key = claudeValue;
             }
             if (googleValue && googleValue !== '{ ... }' && !googleValue.includes('••••')) {
-                keys.google_credentials = googleValue;
+                // Validate JSON
+                try {
+                    JSON.parse(googleValue);
+                    keys.google_credentials = googleValue;
+                } catch (e) {
+                    alert('Invalid Google Service Account JSON format');
+                    return;
+                }
             }
             if (elevenValue && !elevenValue.includes('••••')) {
                 keys.elevenlabs_api_key = elevenValue;
-            }
-            if (recallValue && !recallValue.includes('••••')) {
-                keys.recall_api_key = recallValue;
             }
             
             // Check if we have any keys to save
@@ -721,22 +710,32 @@
                         'Content-Type': 'application/json',
                         'Accept': 'application/json'
                     },
-                    credentials: 'include', // Changed from 'same-origin' to 'include'
+                    credentials: 'same-origin',
                     body: JSON.stringify(keys)
                 });
 
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
                 const data = await response.json();
                 
-                if (response.ok && data.success) {
+                if (data.success) {
                     alert('API keys saved successfully!');
                     loadApiKeys();
                 } else {
-                    console.error('Server response:', response.status, data);
-                    alert(`Error saving API keys: ${data.error || 'Unknown error'}`);
+                    console.error('Server error:', data);
+                    alert(`Error: ${data.error || 'Failed to save keys'}`);
                 }
             } catch (error) {
-                console.error('Request error:', error);
-                alert('Network error saving API keys. Check console for details.');
+                console.error('Save error:', error);
+                if (error.message.includes('Failed to fetch')) {
+                    alert('Cannot connect to server. Make sure the server is running.');
+                } else if (error.message.includes('JSON')) {
+                    alert('Invalid response from server. Check server logs.');
+                } else {
+                    alert(`Error: ${error.message}`);
+                }
             }
         }
 
@@ -752,10 +751,7 @@
                 case 'elevenlabs':
                     apiKey = document.getElementById('elevenlabs-key').value;
                     break;
-                case 'recall':
-                    apiKey = document.getElementById('recall-key').value;
-                    break;
-            }
+                            }
 
             if (!apiKey || apiKey.includes('••••')) {
                 alert('Please enter a valid API key to test');

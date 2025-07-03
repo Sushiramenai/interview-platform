@@ -116,11 +116,6 @@ A fully automated interview platform where an AI bot joins Google Meet and condu
 - No bot needed
 - Cost: ~$0.01/interview
 
-### 3. **Premium Mode** (Optional)
-- Requirements: All 4 services + Recall.ai
-- Full recording + transcription
-- Cost: Depends on Recall.ai pricing
-
 ## ❓ Common HR Questions
 
 **Q: Do I need technical knowledge?**
