@@ -215,6 +215,9 @@
         <div class="setup-header">
             <h1>Welcome to AI Interview Platform</h1>
             <p>Let's set up your platform in just a few steps</p>
+            <p style="margin-top: 20px; font-size: 14px;">
+                Already configured? <a href="/login" style="color: white; text-decoration: underline;">Login as Admin</a>
+            </p>
         </div>
 
         <div class="setup-progress">
@@ -258,6 +261,7 @@
 
                 <div class="button-group">
                     <button class="btn btn-primary" onclick="nextStep()">Next</button>
+                    <button class="btn btn-secondary" onclick="skipSetup()" style="margin-left: 10px;">Configure Later</button>
                 </div>
             </div>
 
@@ -535,6 +539,32 @@ We look forward to speaking with you!</textarea>
                 }
             } catch (error) {
                 showAlert('Error completing setup: ' + error.message, 'error');
+            }
+        }
+
+        async function skipSetup() {
+            // Save minimal config to mark as initialized
+            const config = {
+                company_name: document.getElementById('company_name').value || 'Your Company',
+                platform_name: document.getElementById('platform_name').value || 'AI Interview Platform',
+                intro_content: document.getElementById('intro_content').value || '# Welcome to Your Interview\n\nWe are excited to meet you!'
+            };
+
+            try {
+                const response = await fetch('/api/config/complete-setup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+
+                if (response.ok) {
+                    showAlert('Redirecting to admin dashboard. You can configure API keys later.', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/admin';
+                    }, 1500);
+                }
+            } catch (error) {
+                window.location.href = '/admin';
             }
         }
 

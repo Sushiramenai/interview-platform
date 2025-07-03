@@ -286,6 +286,11 @@
         async function loadInterviews() {
             try {
                 const response = await fetch('/api/interviews');
+                if (!response.ok) {
+                    document.getElementById('interviews-tbody').innerHTML = '<tr><td colspan="6" style="text-align: center;">Error loading interviews</td></tr>';
+                    return;
+                }
+                
                 const interviews = await response.json();
                 const tbody = document.getElementById('interviews-tbody');
                 
@@ -308,6 +313,7 @@
                 `).join('');
             } catch (error) {
                 console.error('Error loading interviews:', error);
+                document.getElementById('interviews-tbody').innerHTML = '<tr><td colspan="6" style="text-align: center;">Error loading interviews</td></tr>';
             }
         }
 

@@ -52,11 +52,21 @@ app.use(session({
 // Check if platform is initialized, redirect to setup if not
 app.use(async (req, res, next) => {
   const isInitialized = await configManager.isInitialized();
-  const isSetupRoute = req.path.startsWith('/setup') || req.path.startsWith('/api/config') || req.path.startsWith('/login') || req.path.startsWith('/api/auth');
+  const isAuthRoute = req.path.startsWith('/login') || req.path.startsWith('/api/auth');
+  const isAdminRoute = req.path.startsWith('/admin') || req.path.startsWith('/api/') && !req.path.startsWith('/api/auth');
+  const isSetupRoute = req.path.startsWith('/setup') || req.path.startsWith('/api/config');
+  const isStaticResource = req.path.includes('.');
   
-  if (!isInitialized && !isSetupRoute) {
+  // Allow auth routes always
+  if (isAuthRoute || isStaticResource) {
+    return next();
+  }
+  
+  // If not initialized and trying to access admin or API routes, redirect to setup
+  if (!isInitialized && (isAdminRoute || req.path === '/')) {
     return res.redirect('/setup');
   }
+  
   next();
 });
 
@@ -81,7 +91,11 @@ app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'src/ui/login.html'));
 });
 
-app.get('/admin', AuthMiddleware.requireAdmin, (req, res) => {
+app.get('/admin', AuthMiddleware.requireAdmin, async (req, res) => {
+  const isInitialized = await configManager.isInitialized();
+  if (!isInitialized) {
+    return res.redirect('/setup');
+  }
   res.sendFile(path.join(__dirname, 'src/ui/admin.html'));
 });
 
