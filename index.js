@@ -400,6 +400,76 @@ app.get('/api/config/keys/status', AuthMiddleware.requireAdmin, async (req, res)
   }
 });
 
+// Direct save endpoint for Google credentials - minimal processing
+app.post('/api/config/google-direct', AuthMiddleware.requireAdmin, async (req, res) => {
+  console.log('Direct Google credentials save');
+  
+  try {
+    const { credentials } = req.body;
+    
+    if (!credentials) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Credentials required' 
+      });
+    }
+    
+    // Minimal validation
+    try {
+      JSON.parse(credentials);
+    } catch (e) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid JSON' 
+      });
+    }
+    
+    // Direct save to file without encryption (temporary)
+    const fs = require('fs').promises;
+    const path = require('path');
+    const configPath = path.join(__dirname, 'data/config.json');
+    
+    // Read existing config
+    const configContent = await fs.readFile(configPath, 'utf8');
+    const config = JSON.parse(configContent);
+    
+    // Save credentials as plain text temporarily
+    if (!config.apiKeys) {
+      config.apiKeys = {};
+    }
+    config.apiKeys.GOOGLE_CREDENTIALS_TEMP = credentials;
+    
+    // Write back immediately
+    await fs.writeFile(configPath, JSON.stringify(config, null, 2));
+    
+    // Now process properly in background
+    setImmediate(async () => {
+      try {
+        console.log('Background processing Google credentials...');
+        await configManager.setApiKey('GOOGLE_CREDENTIALS', credentials);
+        
+        // Remove temp key
+        const updatedConfig = await configManager.getConfig();
+        delete updatedConfig.apiKeys.GOOGLE_CREDENTIALS_TEMP;
+        await configManager.saveConfig(updatedConfig);
+        
+        console.log('✅ Google credentials fully processed');
+      } catch (e) {
+        console.error('Background processing failed:', e);
+      }
+    });
+    
+    res.json({ success: true });
+    
+  } catch (error) {
+    console.error('Direct save error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Save failed. Please use command line tool.' 
+    });
+  }
+});
+
 // Temporary storage for Google credential chunks
 const googleCredsChunks = new Map();
 
