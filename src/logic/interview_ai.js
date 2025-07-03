@@ -100,7 +100,7 @@ class InterviewAI {
             if (response && response.length < 50) {
                 await onQuestion({
                     type: 'followup',
-                    text: 'Could you elaborate on that a bit more? I'd love to hear more details.'
+                    text: 'Could you elaborate on that a bit more? I\'d love to hear more details.'
                 });
                 const followup = await onResponse();
                 responses[responses.length - 1].followup = followup;
