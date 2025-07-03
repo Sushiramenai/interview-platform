@@ -10,18 +10,33 @@ const Evaluator = require('./src/logic/evaluator');
 const MeetGenerator = require('./src/utils/meet_generator');
 const DriveUploader = require('./src/utils/drive_upload');
 const AuthMiddleware = require('./src/middleware/auth');
+const ConfigManager = require('./src/utils/config_manager');
+const ServiceInitializer = require('./src/utils/service_initializer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Initialize services
-const interviewAI = new InterviewAI();
-const evaluator = new Evaluator();
-const meetGenerator = new MeetGenerator();
-const driveUploader = new DriveUploader();
+// Initialize config first
+const configManager = new ConfigManager();
+
+// Initialize services after config
+let interviewAI, evaluator, meetGenerator, driveUploader;
+
+async function initializeServices() {
+  await configManager.initialize();
+  await ServiceInitializer.initializeAllServices(configManager);
+  
+  interviewAI = new InterviewAI();
+  evaluator = new Evaluator();
+  meetGenerator = new MeetGenerator();
+  driveUploader = new DriveUploader();
+}
 
 // Initialize admin user
 AuthMiddleware.initializeAdmin();
+
+// Start initialization
+initializeServices().catch(console.error);
 
 // Middleware
 app.use(cors());
@@ -34,9 +49,28 @@ app.use(session({
   saveUninitialized: true
 }));
 
+// Check if platform is initialized, redirect to setup if not
+app.use(async (req, res, next) => {
+  const isInitialized = await configManager.isInitialized();
+  const isSetupRoute = req.path.startsWith('/setup') || req.path.startsWith('/api/config') || req.path.startsWith('/login') || req.path.startsWith('/api/auth');
+  
+  if (!isInitialized && !isSetupRoute) {
+    return res.redirect('/setup');
+  }
+  next();
+});
+
 // Routes
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'src/ui/landing.html'));
+});
+
+app.get('/setup', async (req, res) => {
+  const isInitialized = await configManager.isInitialized();
+  if (isInitialized) {
+    return res.redirect('/admin');
+  }
+  res.sendFile(path.join(__dirname, 'src/ui/setup.html'));
 });
 
 app.get('/interview', (req, res) => {
@@ -56,12 +90,13 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     
-    // Check credentials against environment variables
-    if (email !== process.env.ADMIN_EMAIL) {
+    // Check credentials against fixed admin account
+    const adminUser = await AuthMiddleware.initializeAdmin();
+    
+    if (email !== adminUser.email && email !== adminUser.username) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
     
-    const adminUser = await AuthMiddleware.initializeAdmin();
     const isValid = await AuthMiddleware.comparePassword(password, adminUser.password);
     
     if (!isValid) {
@@ -98,11 +133,86 @@ app.get('/api/auth/check', AuthMiddleware.requireAuth, (req, res) => {
   res.json({ authenticated: true, user: req.user });
 });
 
+// Configuration API Routes
+app.post('/api/config/test', async (req, res) => {
+  try {
+    const { service, apiKey } = req.body;
+    const result = await configManager.testApiKey(service, apiKey);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.post('/api/config/complete-setup', async (req, res) => {
+  try {
+    const config = req.body;
+    
+    // Save settings
+    await configManager.updateSettings({
+      company_name: config.company_name,
+      platform_name: config.platform_name,
+      intro_content: config.intro_content
+    });
+    
+    // Save API keys
+    if (config.claude_api_key) {
+      await configManager.setApiKey('CLAUDE_API_KEY', config.claude_api_key);
+    }
+    if (config.google_credentials) {
+      await configManager.setApiKey('GOOGLE_CREDENTIALS', config.google_credentials);
+    }
+    if (config.elevenlabs_api_key) {
+      await configManager.setApiKey('ELEVENLABS_API_KEY', config.elevenlabs_api_key);
+    }
+    if (config.recall_api_key) {
+      await configManager.setApiKey('RECALL_API_KEY', config.recall_api_key);
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/config/keys', AuthMiddleware.requireAdmin, async (req, res) => {
+  try {
+    const keys = await configManager.getApiKeys();
+    // Mask sensitive parts
+    const masked = {};
+    for (const [key, value] of Object.entries(keys)) {
+      if (value && value.length > 8) {
+        masked[key] = value.substr(-4);
+      }
+    }
+    res.json(masked);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/config/keys', AuthMiddleware.requireAdmin, async (req, res) => {
+  try {
+    const keys = req.body;
+    
+    for (const [key, value] of Object.entries(keys)) {
+      if (value && !value.includes('••••')) {
+        const keyName = key.toUpperCase().replace(/-/g, '_');
+        await configManager.setApiKey(keyName, value);
+      }
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // API Routes
 app.get('/api/settings', async (req, res) => {
   try {
-    const settings = await fs.readFile('data/settings.json', 'utf8');
-    res.json(JSON.parse(settings));
+    const config = await configManager.getConfig();
+    res.json(config.settings || { intro_content: '# Welcome to Your Interview\n\nWe are excited to meet you!' });
   } catch (error) {
     res.json({ intro_content: '# Welcome to Your Interview\n\nWe are excited to meet you!' });
   }
@@ -110,7 +220,7 @@ app.get('/api/settings', async (req, res) => {
 
 app.post('/api/settings', AuthMiddleware.requireAdmin, async (req, res) => {
   try {
-    await fs.writeFile('data/settings.json', JSON.stringify(req.body, null, 2));
+    await configManager.updateSettings(req.body);
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });

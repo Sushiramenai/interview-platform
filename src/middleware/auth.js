@@ -50,22 +50,16 @@ class AuthMiddleware {
     }
 
     static async initializeAdmin() {
-        // Initialize default admin user if not exists
-        const adminEmail = process.env.ADMIN_EMAIL;
-        const adminPassword = process.env.ADMIN_PASSWORD;
+        // Fixed admin credentials for initial setup
+        const adminEmail = 'Admin';
+        const adminPassword = 'admin123';
 
-        if (!adminEmail || !adminPassword) {
-            console.warn('Admin credentials not configured in environment');
-            return;
-        }
-
-        // In production, this would check/create in database
-        // For now, we'll use environment variables
         const hashedPassword = await AuthMiddleware.hashPassword(adminPassword);
         
         console.log('Admin user initialized:', adminEmail);
         return {
             email: adminEmail,
+            username: adminEmail,
             password: hashedPassword,
             role: 'admin'
         };

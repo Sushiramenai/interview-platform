@@ -132,6 +132,7 @@
             <a href="#" class="nav-link active" data-section="interviews">Interviews</a>
             <a href="#" class="nav-link" data-section="roles">Role Templates</a>
             <a href="#" class="nav-link" data-section="settings">Settings</a>
+            <a href="#" class="nav-link" data-section="api-config">API Configuration</a>
         </div>
         
         <div class="main-content">
@@ -198,6 +199,54 @@
                     <textarea id="intro-content"></textarea>
                 </div>
                 <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+            </div>
+            
+            <!-- API Configuration Section -->
+            <div id="api-config" class="section">
+                <h2>API Configuration</h2>
+                <p>Manage your service integrations and API keys.</p>
+                
+                <div style="background: #f8f9fa; padding: 20px; margin-bottom: 30px; border-radius: 8px;">
+                    <h3>Claude AI</h3>
+                    <p>Powers the AI interviewer and evaluation</p>
+                    <div class="form-group">
+                        <label>API Key</label>
+                        <input type="password" id="claude-key" placeholder="sk-ant-..." style="width: calc(100% - 120px);">
+                        <button class="btn" onclick="testApiKey('claude')" style="width: 100px; margin-left: 10px;">Test</button>
+                    </div>
+                </div>
+                
+                <div style="background: #f8f9fa; padding: 20px; margin-bottom: 30px; border-radius: 8px;">
+                    <h3>Google Services</h3>
+                    <p>Creates Meet rooms and manages recordings</p>
+                    <div class="form-group">
+                        <label>Service Account JSON</label>
+                        <textarea id="google-creds" placeholder='{"type": "service_account", ...}' style="min-height: 100px;"></textarea>
+                        <button class="btn" onclick="testApiKey('google')" style="margin-top: 10px;">Test Connection</button>
+                    </div>
+                </div>
+                
+                <div style="background: #f8f9fa; padding: 20px; margin-bottom: 30px; border-radius: 8px;">
+                    <h3>ElevenLabs (Optional)</h3>
+                    <p>Natural voice synthesis</p>
+                    <div class="form-group">
+                        <label>API Key</label>
+                        <input type="password" id="elevenlabs-key" placeholder="Your API key" style="width: calc(100% - 120px);">
+                        <button class="btn" onclick="testApiKey('elevenlabs')" style="width: 100px; margin-left: 10px;">Test</button>
+                    </div>
+                </div>
+                
+                <div style="background: #f8f9fa; padding: 20px; margin-bottom: 30px; border-radius: 8px;">
+                    <h3>Recall.ai (Optional)</h3>
+                    <p>Automatic recording service</p>
+                    <div class="form-group">
+                        <label>API Key</label>
+                        <input type="password" id="recall-key" placeholder="Your API key" style="width: calc(100% - 120px);">
+                        <button class="btn" onclick="testApiKey('recall')" style="width: 100px; margin-left: 10px;">Test</button>
+                    </div>
+                </div>
+                
+                <button class="btn btn-primary" onclick="saveApiKeys()">Save All API Keys</button>
             </div>
         </div>
     </div>
@@ -382,11 +431,109 @@
             }
         }
 
+        // API Configuration Functions
+        async function loadApiKeys() {
+            try {
+                const response = await fetch('/api/config/keys');
+                const keys = await response.json();
+                
+                if (keys.CLAUDE_API_KEY) {
+                    document.getElementById('claude-key').value = '••••••••' + keys.CLAUDE_API_KEY.substr(-4);
+                }
+                if (keys.GOOGLE_CREDENTIALS) {
+                    document.getElementById('google-creds').value = '{ ... }';
+                }
+                if (keys.ELEVENLABS_API_KEY) {
+                    document.getElementById('elevenlabs-key').value = '••••••••' + keys.ELEVENLABS_API_KEY.substr(-4);
+                }
+                if (keys.RECALL_API_KEY) {
+                    document.getElementById('recall-key').value = '••••••••' + keys.RECALL_API_KEY.substr(-4);
+                }
+            } catch (error) {
+                console.error('Error loading API keys:', error);
+            }
+        }
+
+        async function saveApiKeys() {
+            const keys = {
+                claude_api_key: document.getElementById('claude-key').value,
+                google_credentials: document.getElementById('google-creds').value,
+                elevenlabs_api_key: document.getElementById('elevenlabs-key').value,
+                recall_api_key: document.getElementById('recall-key').value
+            };
+
+            // Don't save masked values
+            Object.keys(keys).forEach(key => {
+                if (keys[key].includes('••••')) {
+                    delete keys[key];
+                }
+            });
+
+            try {
+                const response = await fetch('/api/config/keys', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(keys)
+                });
+
+                if (response.ok) {
+                    alert('API keys saved successfully!');
+                    loadApiKeys();
+                } else {
+                    alert('Error saving API keys');
+                }
+            } catch (error) {
+                console.error('Error saving API keys:', error);
+                alert('Error saving API keys');
+            }
+        }
+
+        async function testApiKey(service) {
+            let apiKey;
+            switch(service) {
+                case 'claude':
+                    apiKey = document.getElementById('claude-key').value;
+                    break;
+                case 'google':
+                    apiKey = document.getElementById('google-creds').value;
+                    break;
+                case 'elevenlabs':
+                    apiKey = document.getElementById('elevenlabs-key').value;
+                    break;
+                case 'recall':
+                    apiKey = document.getElementById('recall-key').value;
+                    break;
+            }
+
+            if (!apiKey || apiKey.includes('••••')) {
+                alert('Please enter a valid API key to test');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/config/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ service, apiKey })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    alert(`✓ ${service} connected successfully!`);
+                } else {
+                    alert(`✗ ${service} test failed: ${result.message}`);
+                }
+            } catch (error) {
+                alert(`Error testing ${service}: ${error.message}`);
+            }
+        }
+
         // Initialize
         checkAuth();
         loadInterviews();
         loadRoles();
         loadSettings();
+        loadApiKeys();
     </script>
 </body>
 </html>

@@ -1,0 +1,9 @@
+{
+  "initialized": false,
+  "apiKeys": {},
+  "settings": {
+    "intro_content": "# Welcome to Your Interview\n\nWe are excited to meet you!",
+    "company_name": "Your Company",
+    "platform_name": "AI Interview Platform"
+  }
+}
