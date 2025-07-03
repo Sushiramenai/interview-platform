@@ -137,6 +137,37 @@ app.get('/health', (req, res) => {
 });
 
 // System status check
+// Debug endpoint to check saved keys
+app.get('/api/config/debug', AuthMiddleware.requireAdmin, async (req, res) => {
+  try {
+    const configPath = path.join(__dirname, 'data/config.json');
+    const configExists = await fs.access(configPath).then(() => true).catch(() => false);
+    
+    let configContent = null;
+    if (configExists) {
+      configContent = await fs.readFile(configPath, 'utf8');
+    }
+    
+    const verification = await configManager.verifyApiKeys();
+    const apiKeys = await configManager.getApiKeys();
+    
+    res.json({
+      configExists,
+      configPath,
+      verification,
+      hasKeys: {
+        claude: !!apiKeys.CLAUDE_API_KEY,
+        google: !!apiKeys.GOOGLE_CREDENTIALS,
+        elevenlabs: !!apiKeys.ELEVENLABS_API_KEY
+      },
+      configSize: configContent ? configContent.length : 0,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/api/system/status', async (req, res) => {
   const apiKeys = await configManager.getApiKeys();
   
@@ -429,7 +460,20 @@ app.post('/api/config/keys', AuthMiddleware.requireAdmin, async (req, res) => {
     }
     
     console.log(`✅ Saved ${saved.length} API keys successfully`);
-    res.json({ success: true, saved: saved });
+    
+    // Verify keys were actually saved
+    const verification = await configManager.verifyApiKeys();
+    console.log('Verification:', verification);
+    
+    if (verification.count === 0) {
+      console.error('❌ Keys were not persisted to disk!');
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Keys were not saved to disk. Please try again.' 
+      });
+    }
+    
+    res.json({ success: true, saved: saved, verified: verification });
   } catch (error) {
     console.error('❌ API Save Error:', error);
     console.error('Stack:', error.stack);
@@ -632,10 +676,13 @@ app.get('/api/interviews/:uuid', async (req, res) => {
 // Automated Interview API Routes
 app.post('/api/interview/automated/start', async (req, res) => {
   console.log('\n🎯 Interview start request received');
+  console.log('Request headers:', req.headers);
+  console.log('Request body:', req.body);
+  
   try {
     const { candidateName, email, role } = req.body;
     
-    console.log('Interview start request:', { candidateName, email, role });
+    console.log('📋 Interview parameters:', { candidateName, email, role });
     
     // Validate input
     if (!candidateName || !email || !role) {
@@ -703,7 +750,15 @@ app.post('/api/interview/automated/start', async (req, res) => {
     
     try {
       // Always use self-hosted bot mode
-      console.log('Starting interview with self-hosted bot mode');
+      console.log('🤖 Starting interview with self-hosted bot mode');
+      console.log('Orchestrator exists:', !!selfHostedInterviewOrchestrator);
+      console.log('Orchestrator type:', typeof selfHostedInterviewOrchestrator);
+      
+      if (!selfHostedInterviewOrchestrator) {
+        throw new Error('selfHostedInterviewOrchestrator is undefined');
+      }
+      
+      console.log('📞 Calling orchestrator.startVideoInterview...');
       const result = await selfHostedInterviewOrchestrator.startVideoInterview(
         candidateName,
         email,

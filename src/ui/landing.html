@@ -115,6 +115,8 @@
             }
             
             // Start automated interview
+            console.log('🎯 Starting interview with:', { candidateName, email: candidateEmail, role });
+            
             try {
                 const response = await fetch('/api/interview/automated/start', {
                     method: 'POST',
@@ -125,6 +127,9 @@
                         role
                     })
                 });
+                
+                console.log('📡 Response status:', response.status);
+                console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
                 
                 if (response.ok) {
                     const session = await response.json();
@@ -215,14 +220,35 @@
                 } else {
                     // Get error details
                     let errorMsg = 'Failed to start interview';
+                    let errorDetails = null;
+                    
                     try {
-                        const errorData = await response.json();
-                        errorMsg = errorData.error || errorMsg;
-                        console.error('Interview start error:', errorData);
+                        const contentType = response.headers.get('content-type');
+                        console.log('Error response content-type:', contentType);
+                        
+                        if (contentType && contentType.includes('application/json')) {
+                            errorDetails = await response.json();
+                            errorMsg = errorDetails.error || errorMsg;
+                            console.error('❌ Interview start error (JSON):', errorDetails);
+                        } else {
+                            const textError = await response.text();
+                            console.error('❌ Interview start error (Text):', textError);
+                            errorMsg = `Server error (${response.status})`;
+                        }
                     } catch (e) {
-                        console.error('Failed to parse error response');
+                        console.error('❌ Failed to parse error response:', e);
                     }
-                    alert(errorMsg + '. Please try again.');
+                    
+                    // Log full error context
+                    console.error('Full error context:', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        errorMsg: errorMsg,
+                        errorDetails: errorDetails,
+                        url: response.url
+                    });
+                    
+                    alert(errorMsg + '. Please check browser console for details.');
                 }
             } catch (error) {
                 console.error('Error starting interview:', error);

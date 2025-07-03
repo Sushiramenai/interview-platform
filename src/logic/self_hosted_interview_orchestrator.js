@@ -17,22 +17,56 @@ class SelfHostedInterviewOrchestrator {
   }
 
   async _ensureInitialized() {
-    if (this._initialized) return;
+    if (this._initialized) {
+      console.log('✅ Orchestrator already initialized');
+      return;
+    }
     
-    console.log('Initializing orchestrator services...');
-    this.meetGenerator = new MeetGenerator();
-    this.interviewAI = new InterviewAI();
-    this.evaluator = new Evaluator();
-    this.interviewTracker = new InterviewTracker();
-    this.elevenLabsService = new ElevenLabsService();
-    this._initialized = true;
-    console.log('Orchestrator services initialized successfully');
+    console.log('🔧 Initializing orchestrator services...');
+    console.log('Environment check:', {
+      CLAUDE_API_KEY: !!process.env.CLAUDE_API_KEY,
+      ELEVENLABS_API_KEY: !!process.env.ELEVENLABS_API_KEY,
+      GOOGLE_CREDENTIALS: !!process.env.GOOGLE_CREDENTIALS
+    });
+    try {
+      console.log('  Creating MeetGenerator...');
+      this.meetGenerator = new MeetGenerator();
+      console.log('  ✅ MeetGenerator created');
+      
+      console.log('  Creating InterviewAI...');
+      this.interviewAI = new InterviewAI();
+      console.log('  ✅ InterviewAI created');
+      
+      console.log('  Creating Evaluator...');
+      this.evaluator = new Evaluator();
+      console.log('  ✅ Evaluator created');
+      
+      console.log('  Creating InterviewTracker...');
+      this.interviewTracker = new InterviewTracker();
+      console.log('  ✅ InterviewTracker created');
+      
+      console.log('  Creating ElevenLabsService...');
+      this.elevenLabsService = new ElevenLabsService();
+      console.log('  ✅ ElevenLabsService created');
+      
+      this._initialized = true;
+      console.log('✅ All orchestrator services initialized successfully');
+    } catch (error) {
+      console.error('❌ Service initialization failed:', error);
+      console.error('Stack:', error.stack);
+      throw error;
+    }
   }
 
   async startVideoInterview(candidateName, email, roleSlug) {
+    console.log('🎬 Orchestrator.startVideoInterview called with:', { candidateName, email, roleSlug });
+    
     // Ensure services are initialized
+    console.log('📦 Ensuring orchestrator services are initialized...');
     await this._ensureInitialized();
+    
     const sessionId = uuidv4();
+    console.log('🆔 Generated session ID:', sessionId);
     
     try {
       // Check required services

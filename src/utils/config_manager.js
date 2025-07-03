@@ -151,13 +151,14 @@ class ConfigManager {
                 const encrypted = this.encrypt(keyValue);
                 config.apiKeys[keyName] = 'enc:' + encrypted;
                 console.log(`Key ${keyName} encrypted successfully`);
+                
+                // CRITICAL: Save the config after updating
+                console.log(`Saving config with keys:`, Object.keys(config.apiKeys));
+                await this.saveConfig(config);
+                console.log(`Config saved successfully for ${keyName}`);
             } else {
-                delete config.apiKeys[keyName];
+                throw new Error('Empty key value provided');
             }
-            
-            console.log(`Saving config with keys:`, Object.keys(config.apiKeys));
-            await this.saveConfig(config);
-            console.log(`Config saved successfully for ${keyName}`);
         } catch (error) {
             console.error(`Error in setApiKey for ${keyName}:`, error);
             throw error;
@@ -240,7 +241,21 @@ class ConfigManager {
         }
     }
 
-    
+    async verifyApiKeys() {
+        console.log('Verifying saved API keys...');
+        const config = await this.getConfig();
+        const keys = config.apiKeys || {};
+        
+        console.log('Saved keys:', Object.keys(keys));
+        console.log('Config file path:', this.configPath);
+        
+        return {
+            claude: !!keys.CLAUDE_API_KEY,
+            google: !!keys.GOOGLE_CREDENTIALS,
+            elevenlabs: !!keys.ELEVENLABS_API_KEY,
+            count: Object.keys(keys).length
+        };
+    }
 }
 
 module.exports = ConfigManager;
