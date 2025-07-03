@@ -14,6 +14,8 @@ const ConfigManager = require('./src/utils/config_manager');
 const ServiceInitializer = require('./src/utils/service_initializer');
 const AutomatedInterviewSystem = require('./src/logic/automated_interview_system');
 const VideoInterviewOrchestrator = require('./src/logic/video_interview_orchestrator');
+const ManualInterviewOrchestrator = require('./src/logic/manual_interview_orchestrator');
+const SelfHostedInterviewOrchestrator = require('./src/logic/self_hosted_interview_orchestrator');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -22,7 +24,7 @@ const PORT = process.env.PORT || 3000;
 const configManager = new ConfigManager();
 
 // Initialize services after config
-let interviewAI, evaluator, meetGenerator, driveUploader, automatedInterviewSystem, videoInterviewOrchestrator;
+let interviewAI, evaluator, meetGenerator, driveUploader, automatedInterviewSystem, videoInterviewOrchestrator, manualInterviewOrchestrator, selfHostedInterviewOrchestrator;
 
 async function initializeServices() {
   await configManager.initialize();
@@ -34,6 +36,8 @@ async function initializeServices() {
   driveUploader = new DriveUploader();
   automatedInterviewSystem = new AutomatedInterviewSystem();
   videoInterviewOrchestrator = new VideoInterviewOrchestrator();
+  manualInterviewOrchestrator = new ManualInterviewOrchestrator();
+  selfHostedInterviewOrchestrator = new SelfHostedInterviewOrchestrator();
 }
 
 // Initialize admin user
@@ -437,21 +441,59 @@ app.post('/api/interview/automated/start', async (req, res) => {
   try {
     const { candidateName, email, role } = req.body;
     
-    // Use video interview orchestrator for real Google Meet interviews
-    const result = await videoInterviewOrchestrator.startVideoInterview(
-      candidateName,
-      email,
-      role.toLowerCase().replace(/\s+/g, '_')
-    );
+    // Check if Recall.ai is configured
+    const hasRecallAI = !!process.env.RECALL_API_KEY;
+    const hasElevenLabs = !!process.env.ELEVENLABS_API_KEY;
     
-    res.json({
-      id: result.sessionId,
-      meetUrl: result.meetUrl,
-      instructions: result.instructions,
-      status: 'ready'
-    });
+    if (hasRecallAI) {
+      // Use Recall.ai bot (expensive option)
+      const result = await videoInterviewOrchestrator.startVideoInterview(
+        candidateName,
+        email,
+        role.toLowerCase().replace(/\s+/g, '_')
+      );
+      
+      res.json({
+        id: result.sessionId,
+        meetUrl: result.meetUrl,
+        instructions: result.instructions,
+        status: 'ready',
+        mode: 'recall-ai'
+      });
+    } else if (hasElevenLabs) {
+      // Use self-hosted bot with ElevenLabs voice
+      const result = await selfHostedInterviewOrchestrator.startVideoInterview(
+        candidateName,
+        email,
+        role.toLowerCase().replace(/\s+/g, '_')
+      );
+      
+      res.json({
+        id: result.sessionId,
+        meetUrl: result.meetUrl,
+        instructions: result.instructions,
+        status: 'ready',
+        mode: 'self-hosted-bot'
+      });
+    } else {
+      // Fallback to manual interview mode
+      const result = await manualInterviewOrchestrator.startVideoInterview(
+        candidateName,
+        email,
+        role.toLowerCase().replace(/\s+/g, '_')
+      );
+      
+      res.json({
+        id: result.sessionId,
+        meetUrl: result.meetUrl,
+        instructions: result.instructions,
+        interviewGuideUrl: result.interviewGuideUrl,
+        status: 'ready',
+        mode: 'manual'
+      });
+    }
   } catch (error) {
-    console.error('Error starting automated interview:', error);
+    console.error('Error starting interview:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -514,6 +556,68 @@ app.get('/api/audio/:filename', (req, res) => {
     res.sendFile(audioPath);
   } else {
     res.status(404).send('Audio not found');
+  }
+});
+
+// Serve interview guide for manual interviews
+app.get('/api/interview/guide/:sessionId', async (req, res) => {
+  try {
+    const guide = await manualInterviewOrchestrator.getInterviewGuide(req.params.sessionId);
+    if (!guide) {
+      return res.status(404).json({ error: 'Interview guide not found' });
+    }
+    
+    // Return as HTML for easy viewing
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Interview Guide - ${guide.role}</title>
+        <style>
+          body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+          h1, h2, h3 { color: #333; }
+          .section { margin: 20px 0; padding: 15px; background: #f5f5f5; border-radius: 8px; }
+          .question { margin: 15px 0; padding: 10px; background: white; border-left: 4px solid #007bff; }
+          .notes { color: #666; font-style: italic; margin-top: 5px; }
+          .time { color: #28a745; font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <h1>Interview Guide: ${guide.role}</h1>
+        
+        <div class="section">
+          <h2>Job Description</h2>
+          <p>${guide.jobDescription}</p>
+        </div>
+        
+        <div class="section">
+          <h2>Interview Structure</h2>
+          ${guide.interviewStructure.sections.map(s => 
+            `<div><span class="time">${s.time}</span> - ${s.name}</div>`
+          ).join('')}
+        </div>
+        
+        <div class="section">
+          <h2>Questions</h2>
+          ${guide.questions.map((q, i) => `
+            <div class="question">
+              <strong>Q${i + 1}: ${q.text}</strong>
+              <div class="notes">${q.notes}</div>
+            </div>
+          `).join('')}
+        </div>
+        
+        <div class="section">
+          <h2>Scoring Guide</h2>
+          ${Object.entries(guide.scoringGuide).map(([level, desc]) => 
+            `<div><strong>${level}:</strong> ${desc}</div>`
+          ).join('')}
+        </div>
+      </body>
+      </html>
+    `);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 

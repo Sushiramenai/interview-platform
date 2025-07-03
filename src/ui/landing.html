@@ -129,28 +129,89 @@
                 if (response.ok) {
                     const session = await response.json();
                     
-                    // Show instructions and redirect to Google Meet
-                    alert(session.instructions || 'Your interview is ready! You will now be redirected to the Google Meet room.');
-                    
-                    // Open Google Meet in new tab/window
-                    window.open(session.meetUrl, '_blank');
-                    
-                    // Show completion message
-                    document.querySelector('.container').innerHTML = `
-                        <h1>Interview Started</h1>
-                        <div class="info-box">
-                            <p>Your Google Meet interview has been opened in a new window/tab.</p>
-                            <p>If the window didn't open, <a href="${session.meetUrl}" target="_blank">click here to join the meeting</a>.</p>
-                            <br>
-                            <h3>Important Notes:</h3>
-                            <ul>
-                                <li>The AI interviewer will join the meeting shortly</li>
-                                <li>Please ensure your camera and microphone are enabled</li>
-                                <li>The interview will be recorded for evaluation</li>
-                                <li>Once you start, you cannot redo the interview</li>
-                            </ul>
-                        </div>
-                    `;
+                    // Check interview mode
+                    if (session.mode === 'self-hosted-bot') {
+                        // Self-hosted AI bot interview
+                        alert('Your AI-powered interview is ready! The AI interviewer will join the Google Meet room shortly after you.');
+                        
+                        // Open Google Meet in new tab
+                        window.open(session.meetUrl, '_blank');
+                        
+                        // Show AI interview instructions
+                        document.querySelector('.container').innerHTML = `
+                            <h1>AI Interview Started</h1>
+                            <div class="info-box" style="border-color: #28a745;">
+                                <p>Your Google Meet interview has been opened in a new window/tab.</p>
+                                <p>If the window didn't open, <a href="${session.meetUrl}" target="_blank">click here to join the meeting</a>.</p>
+                                <br>
+                                <h3>🤖 AI Interview Process:</h3>
+                                <ul>
+                                    <li>Join the Google Meet room now</li>
+                                    <li>The AI interviewer will join in about 10 seconds</li>
+                                    <li>The AI will ask questions using natural voice</li>
+                                    <li>Speak clearly when answering each question</li>
+                                    <li>Wait for the AI to finish speaking before responding</li>
+                                    <li>The interview will last 30-45 minutes</li>
+                                </ul>
+                                
+                                <div style="margin-top: 20px; padding: 15px; background: #d4edda; color: #155724; border-radius: 5px;">
+                                    <strong>✅ AI Bot Active</strong> - Your interview will be conducted by our AI interviewer with voice synthesis.
+                                </div>
+                            </div>
+                        `;
+                    } else if (session.mode === 'manual') {
+                        // Manual interview without bot
+                        alert('Interview ready! You will now join a Google Meet room. An interviewer will conduct your interview using the prepared questions.');
+                        
+                        // Open Google Meet in new tab
+                        window.open(session.meetUrl, '_blank');
+                        
+                        // Show manual interview instructions
+                        document.querySelector('.container').innerHTML = `
+                            <h1>Interview Started (Manual Mode)</h1>
+                            <div class="info-box">
+                                <p>Your Google Meet interview has been opened in a new window/tab.</p>
+                                <p>If the window didn't open, <a href="${session.meetUrl}" target="_blank">click here to join the meeting</a>.</p>
+                                <br>
+                                <h3>Interview Process:</h3>
+                                <ul>
+                                    <li>A human interviewer will join the call</li>
+                                    <li>They have access to prepared questions for your role</li>
+                                    <li>The interview will last 30-45 minutes</li>
+                                    <li>Please ensure your camera and microphone work</li>
+                                    <li>This is a one-time interview - no redos allowed</li>
+                                </ul>
+                                
+                                ${session.interviewGuideUrl ? `
+                                <br>
+                                <p><strong>For the interviewer:</strong> <a href="${session.interviewGuideUrl}" target="_blank">View Interview Guide</a></p>
+                                ` : ''}
+                            </div>
+                        `;
+                    } else {
+                        // Full automated interview with bot
+                        alert(session.instructions || 'Your interview is ready! You will now be redirected to the Google Meet room.');
+                        
+                        // Open Google Meet in new tab/window
+                        window.open(session.meetUrl, '_blank');
+                        
+                        // Show completion message
+                        document.querySelector('.container').innerHTML = `
+                            <h1>Interview Started</h1>
+                            <div class="info-box">
+                                <p>Your Google Meet interview has been opened in a new window/tab.</p>
+                                <p>If the window didn't open, <a href="${session.meetUrl}" target="_blank">click here to join the meeting</a>.</p>
+                                <br>
+                                <h3>Important Notes:</h3>
+                                <ul>
+                                    <li>The AI interviewer will join the meeting shortly</li>
+                                    <li>Please ensure your camera and microphone are enabled</li>
+                                    <li>The interview will be recorded for evaluation</li>
+                                    <li>Once you start, you cannot redo the interview</li>
+                                </ul>
+                            </div>
+                        `;
+                    }
                 } else {
                     alert('Failed to start interview. Please try again.');
                 }

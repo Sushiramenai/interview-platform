@@ -291,11 +291,12 @@
                 </div>
                 
                 <div style="background: #f8f9fa; padding: 20px; margin-bottom: 30px; border-radius: 8px;">
-                    <h3>Recall.ai <span style="color: #dc3545;">(Required)</span></h3>
+                    <h3>Recall.ai <span style="color: #ffc107;">(Optional - Enables AI Bot)</span></h3>
                     <p>Video recording and AI bot for Google Meet</p>
+                    <p style="color: #666; font-size: 14px;">Without this, interviews will use manual mode with human interviewers</p>
                     <div class="form-group">
-                        <label>API Key <span style="color: #dc3545;">*</span></label>
-                        <input type="password" id="recall-key" placeholder="Your API key" style="width: calc(100% - 120px);" required>
+                        <label>API Key</label>
+                        <input type="password" id="recall-key" placeholder="Your API key (optional)" style="width: calc(100% - 120px);">
                         <button class="btn" onclick="testApiKey('recall')" style="width: 100px; margin-left: 10px;">Test</button>
                     </div>
                 </div>
@@ -633,26 +634,35 @@
             const statusDiv = document.getElementById('status-indicators');
             if (!statusDiv) return;
             
-            const allConfigured = claude && google && elevenlabs && recall;
+            const requiredConfigured = claude && google && elevenlabs;
+            const allConfigured = requiredConfigured && recall;
             
             statusDiv.innerHTML = `
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
                     <div>
-                        ${claude ? '✅' : '❌'} Claude AI ${claude ? 'Configured' : 'Missing'}
+                        ${claude ? '✅' : '❌'} Claude AI ${claude ? 'Configured' : 'Missing (Required)'}
                     </div>
                     <div>
-                        ${google ? '✅' : '❌'} Google Services ${google ? 'Configured' : 'Missing'}
+                        ${google ? '✅' : '❌'} Google Services ${google ? 'Configured' : 'Missing (Required)'}
                     </div>
                     <div>
-                        ${elevenlabs ? '✅' : '❌'} ElevenLabs ${elevenlabs ? 'Configured' : 'Missing'}
+                        ${elevenlabs ? '✅' : '❌'} ElevenLabs ${elevenlabs ? 'Configured' : 'Missing (Required)'}
                     </div>
                     <div>
-                        ${recall ? '✅' : '❌'} Recall.ai ${recall ? 'Configured' : 'Missing'}
+                        ${recall ? '✅' : '⚠️'} Recall.ai ${recall ? 'Configured' : 'Not configured (Optional)'}
                     </div>
                 </div>
-                <div style="padding: 10px; background: ${allConfigured ? '#d4edda' : '#f8d7da'}; color: ${allConfigured ? '#155724' : '#721c24'}; border-radius: 5px;">
-                    ${allConfigured ? '✅ All systems ready - Video interviews can be conducted' : '❌ System not ready - Please configure all required services'}
+                <div style="padding: 10px; background: ${allConfigured ? '#d4edda' : requiredConfigured ? '#d1ecf1' : '#f8d7da'}; color: ${allConfigured ? '#155724' : requiredConfigured ? '#0c5460' : '#721c24'}; border-radius: 5px;">
+                    ${allConfigured ? '✅ All systems ready - Premium AI bot interviews (Recall.ai)' : 
+                      requiredConfigured ? '🤖 Self-hosted AI bot active - Interviews conducted by AI with voice synthesis' : 
+                      '❌ System not ready - Please configure required services'}
                 </div>
+                ${requiredConfigured && !recall ? `
+                <div style="margin-top: 10px; padding: 10px; background: #e7f3ff; color: #004085; border-radius: 5px; font-size: 14px;">
+                    <strong>Current Mode:</strong> AI bot will join Google Meet and conduct interviews using ElevenLabs voice.
+                    <br>Note: Without Recall.ai, video recording is not available.
+                </div>
+                ` : ''}
             `;
         }
 
@@ -681,12 +691,7 @@
                     return;
                 }
             }
-            if (!keys.recall_api_key || keys.recall_api_key.includes('••••')) {
-                if (!document.getElementById('recall-key').value.includes('••••')) {
-                    alert('Recall.ai API key is required for video recording');
-                    return;
-                }
-            }
+            // Recall.ai is optional - don't require it
 
             // Don't save masked values
             Object.keys(keys).forEach(key => {

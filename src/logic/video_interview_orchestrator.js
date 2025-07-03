@@ -33,7 +33,7 @@ class VideoInterviewOrchestrator {
         throw new Error('Voice synthesis (ElevenLabs) is not configured. Please contact administrator.');
       }
       if (!process.env.RECALL_API_KEY) {
-        throw new Error('Video recording (Recall.ai) is not configured. Please contact administrator.');
+        throw new Error('Recall.ai is not configured. Using manual interview mode instead.');
       }
       
       // 1. Check if candidate has already attempted this interview

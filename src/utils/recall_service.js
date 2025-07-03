@@ -5,7 +5,8 @@ class RecallService extends EventEmitter {
   constructor() {
     super();
     this.apiKey = process.env.RECALL_API_KEY;
-    this.baseUrl = 'https://api.recall.ai/api/v1';
+    this.region = process.env.RECALL_REGION || 'us-west-2';
+    this.baseUrl = `https://${this.region}.recall.ai/api/v1`;
     this.webhookUrl = process.env.RECALL_WEBHOOK_URL || 'https://your-domain.com/api/webhooks/recall';
     this.activeBots = new Map();
   }
@@ -27,24 +28,22 @@ class RecallService extends EventEmitter {
         {
           meeting_url: options.meetingUrl,
           bot_name: options.botName || 'AI Interviewer',
-          transcription_options: {
-            provider: options.transcription?.provider || 'assembly_ai',
-            assembly_ai: {
-              final_model: 'best',
-              speaker_labels: true
+          recording_config: {
+            transcript: {
+              provider: {
+                meeting_captions: {}
+              }
             }
           },
-          recording_mode: options.recording?.mode || 'speaker_view',
           webhook_url: this.webhookUrl,
           automatic_leave: {
             everyone_left_timeout: 60, // Leave after 60 seconds if everyone else left
             noone_joined_timeout: 300  // Leave after 5 minutes if no one joined
-          },
-          join_at: options.joinAt || new Date().toISOString()
+          }
         },
         {
           headers: {
-            'Authorization': `Bearer ${this.apiKey}`,
+            'Authorization': `Token ${this.apiKey}`,
             'Content-Type': 'application/json'
           }
         }
@@ -70,7 +69,7 @@ class RecallService extends EventEmitter {
         `${this.baseUrl}/bot/${botId}`,
         {
           headers: {
-            'Authorization': `Bearer ${this.apiKey}`
+            'Authorization': `Token ${this.apiKey}`
           }
         }
       );
@@ -104,7 +103,7 @@ class RecallService extends EventEmitter {
         `${this.baseUrl}/bot/${botId}/transcript`,
         {
           headers: {
-            'Authorization': `Bearer ${this.apiKey}`
+            'Authorization': `Token ${this.apiKey}`
           }
         }
       );
@@ -126,7 +125,7 @@ class RecallService extends EventEmitter {
         `${this.baseUrl}/bot/${botId}/recording`,
         {
           headers: {
-            'Authorization': `Bearer ${this.apiKey}`
+            'Authorization': `Token ${this.apiKey}`
           }
         }
       );
@@ -179,7 +178,7 @@ class RecallService extends EventEmitter {
         {},
         {
           headers: {
-            'Authorization': `Bearer ${this.apiKey}`
+            'Authorization': `Token ${this.apiKey}`
           }
         }
       );
@@ -202,7 +201,7 @@ class RecallService extends EventEmitter {
         `${this.baseUrl}/bot/${botId}`,
         {
           headers: {
-            'Authorization': `Bearer ${this.apiKey}`
+            'Authorization': `Token ${this.apiKey}`
           }
         }
       );
