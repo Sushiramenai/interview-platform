@@ -1,8 +1,8 @@
 # AI-Powered Video Interview Platform
 
-[![Run on Replit](https://replit.com/badge/github/git push -u origin main/interview-platform)](https://replit.com/new/github/git push -u origin main/interview-platform)
+[![Run on Replit](https://replit.com/badge/github/sushiramenai/interview-platform)](https://replit.com/new/github/sushiramenai/interview-platform)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js CI](https://github.com/git push -u origin main/interview-platform/actions/workflows/test.yml/badge.svg)](https://github.com/git push -u origin main/interview-platform/actions/workflows/test.yml)
+[![Node.js CI](https://github.com/sushiramenai/interview-platform/actions/workflows/test.yml/badge.svg)](https://github.com/sushiramenai/interview-platform/actions/workflows/test.yml)
 
 An automated interview platform that uses Claude AI to conduct and evaluate video interviews via Google Meet.
 
@@ -18,7 +18,7 @@ An automated interview platform that uses Claude AI to conduct and evaluate vide
 ## Quick Start
 
 ### Option 1: Deploy on Replit (Recommended)
-[![Run on Replit](https://replit.com/badge/github/git push -u origin main/interview-platform)](https://replit.com/new/github/git push -u origin main/interview-platform)
+[![Run on Replit](https://replit.com/badge/github/sushiramenai/interview-platform)](https://replit.com/new/github/sushiramenai/interview-platform)
 
 1. Click the button above
 2. Configure secrets in Replit (see [REPLIT_SETUP.md](REPLIT_SETUP.md))
@@ -26,7 +26,7 @@ An automated interview platform that uses Claude AI to conduct and evaluate vide
 
 ### Option 2: Local Development
 ```bash
-git clone https://github.com/git push -u origin main/interview-platform.git
+git clone https://github.com/sushiramenai/interview-platform.git
 cd interview-platform
 ```
 
