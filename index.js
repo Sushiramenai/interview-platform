@@ -605,6 +605,38 @@ app.post('/api/config/google-finalize', AuthMiddleware.requireAdmin, async (req,
   }
 });
 
+// Diagnostic endpoint for debugging API key issues
+app.get('/api/diagnostic/keys', AuthMiddleware.requireAdmin, async (req, res) => {
+  try {
+    const configPath = path.join(__dirname, 'data/config.json');
+    const fileExists = await fs.access(configPath).then(() => true).catch(() => false);
+    const fileContent = fileExists ? await fs.readFile(configPath, 'utf8') : 'File not found';
+    const config = fileExists ? JSON.parse(fileContent) : null;
+    
+    const apiKeys = await configManager.getApiKeys();
+    const envKeys = {
+      CLAUDE_API_KEY: !!process.env.CLAUDE_API_KEY,
+      GOOGLE_CREDENTIALS: !!process.env.GOOGLE_CREDENTIALS,
+      ELEVENLABS_API_KEY: !!process.env.ELEVENLABS_API_KEY
+    };
+    
+    res.json({
+      configPath,
+      fileExists,
+      configContent: config,
+      decryptedKeys: Object.keys(apiKeys).reduce((acc, key) => {
+        acc[key] = apiKeys[key] ? `${apiKeys[key].substring(0, 10)}...` : null;
+        return acc;
+      }, {}),
+      envVarsSet: envKeys,
+      servicesInitialized,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message, stack: error.stack });
+  }
+});
+
 // Clean up old chunks periodically (every 5 minutes)
 setInterval(() => {
   const now = Date.now();

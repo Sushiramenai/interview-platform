@@ -83,25 +83,70 @@ class SelfHostedInterviewOrchestrator {
         throw new Error('Required services not configured. Please contact administrator.');
       }
       
-      // Create a temporary Meet URL immediately
-      const tempMeetCode = this._generateTempMeetCode();
-      const tempMeetUrl = `https://meet.google.com/${tempMeetCode}`;
+      // Initialize services if needed (should be fast if already initialized)
+      await this._ensureInitialized();
       
-      // Return response immediately
+      // Check if Google credentials are configured
+      let meetUrl;
+      let instructions;
+      let needsGoogleSetup = false;
+      
+      if (process.env.GOOGLE_CREDENTIALS) {
+        try {
+          // Try to create real Meet room
+          console.log('🔗 Creating Google Meet room...');
+          const meetInfo = await this.meetGenerator.createMeetRoom(
+            `${candidateName}_${sessionId}`,
+            candidateName,
+            roleSlug
+          );
+          
+          // Check if it's a simulated URL (fallback)
+          if (meetInfo.meetUrl.includes(meetInfo.meetCode) && meetInfo.recordingStatus === 'unavailable') {
+            console.warn('⚠️ Google Meet creation failed - using fallback');
+            needsGoogleSetup = true;
+          } else {
+            console.log('✅ Real Meet room created:', meetInfo.meetUrl);
+            meetUrl = meetInfo.meetUrl;
+          }
+        } catch (error) {
+          console.error('❌ Meet creation error:', error);
+          needsGoogleSetup = true;
+        }
+      } else {
+        console.warn('⚠️ Google credentials not configured');
+        needsGoogleSetup = true;
+      }
+      
+      // Prepare response based on Meet availability
+      if (needsGoogleSetup) {
+        // Provide clear instructions for manual setup
+        meetUrl = '#';
+        instructions = `⚠️ Google Meet integration is not configured.
+
+To complete your interview:
+1. Create a Google Meet room manually: https://meet.google.com/new
+2. Share the Meet link with your interviewer
+3. The interview will proceed via audio/video call
+
+Alternatively, contact your administrator to set up Google integration.`;
+      } else {
+        instructions = `Your AI-powered interview is ready! The AI interviewer will join the Google Meet room shortly after you.`;
+      }
+      
+      // Return response
       const quickResponse = {
         sessionId,
-        meetUrl: tempMeetUrl,
-        instructions: `Your interview is being prepared. Please wait a moment before joining the Meet room.`,
-        status: 'preparing'
+        meetUrl,
+        instructions,
+        status: needsGoogleSetup ? 'manual-setup-required' : 'ready',
+        needsGoogleSetup
       };
       
-      // Initialize everything else in the background
+      // Do the rest in the background
       setImmediate(async () => {
         try {
-          console.log('🔧 Background initialization starting...');
-          
-          // Initialize services if needed
-          await this._ensureInitialized();
+          console.log('🔧 Background processing starting...');
           
           // Load role template
           const roleTemplate = await this.interviewAI.loadRoleTemplate(roleSlug);
@@ -116,14 +161,7 @@ class SelfHostedInterviewOrchestrator {
           // Register the interview
           await this.interviewTracker.startInterview(email, roleSlug, sessionId);
           
-          // Create real Google Meet room
-          const meetInfo = await this.meetGenerator.createMeetRoom(
-            `${candidateName}_${sessionId}`,
-            candidateName,
-            roleTemplate.role
-          );
-          
-          // Update session with real Meet URL
+          // Create session with the already-created Meet URL
           const session = {
             id: sessionId,
             candidateName,
@@ -154,8 +192,8 @@ class SelfHostedInterviewOrchestrator {
         }
       });
       
-      // Return response immediately to prevent timeout
-      console.log('✅ Returning quick response for session:', sessionId);
+      // Return the response with real Meet URL
+      console.log('✅ Returning response with real Meet URL for session:', sessionId);
       return quickResponse;
       
     } catch (error) {
