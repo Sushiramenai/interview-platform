@@ -274,11 +274,55 @@ app.get('/api/auth/check', AuthMiddleware.requireAuth, (req, res) => {
 
 // Configuration API Routes
 app.post('/api/config/test', async (req, res) => {
+  // Set timeout for Replit
+  if (IS_REPLIT) {
+    req.setTimeout(15000);
+    res.setTimeout(15000);
+  }
+  
   try {
     const { service, apiKey } = req.body;
-    const result = await configManager.testApiKey(service, apiKey);
-    res.json(result);
+    
+    console.log(`Testing ${service} API connection...`);
+    
+    if (!service || !apiKey) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Service and API key are required' 
+      });
+    }
+    
+    // Ensure config manager is initialized
+    if (!configManager) {
+      await initializeServices();
+    }
+    
+    // Add timeout protection for API tests on Replit
+    if (IS_REPLIT) {
+      const testPromise = configManager.testApiKey(service, apiKey);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Test timeout')), 12000)
+      );
+      
+      try {
+        const result = await Promise.race([testPromise, timeoutPromise]);
+        res.json(result);
+      } catch (timeoutError) {
+        if (timeoutError.message === 'Test timeout') {
+          res.json({ 
+            success: false, 
+            message: 'API test timed out. This might be due to network restrictions. Please try saving the key and testing the full system instead.' 
+          });
+        } else {
+          throw timeoutError;
+        }
+      }
+    } else {
+      const result = await configManager.testApiKey(service, apiKey);
+      res.json(result);
+    }
   } catch (error) {
+    console.error(`API test error for ${req.body?.service}:`, error);
     res.status(500).json({ success: false, message: error.message });
   }
 });

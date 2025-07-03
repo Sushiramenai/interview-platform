@@ -260,6 +260,11 @@
                     <div id="status-indicators">Checking services...</div>
                 </div>
                 
+                <!-- Replit Note -->
+                <div id="replit-note" style="background: #e3f2fd; border: 1px solid #90caf9; padding: 15px; margin-bottom: 20px; border-radius: 6px; display: none;">
+                    <strong>💡 Replit Note:</strong> API tests may timeout due to network restrictions. If tests fail but your keys are correct, save them anyway and test the full interview system.
+                </div>
+                
                 
                 
                 
@@ -313,6 +318,13 @@
         
         if (isReplit) {
             console.log('🚀 Running on Replit - UI optimizations active');
+            // Show Replit note when page loads
+            document.addEventListener('DOMContentLoaded', () => {
+                const replitNote = document.getElementById('replit-note');
+                if (replitNote) {
+                    replitNote.style.display = 'block';
+                }
+            });
         }
 
         // Check authentication on load
@@ -920,10 +932,19 @@
             try {
                 const response = await fetch('/api/config/test', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
                     credentials: 'same-origin',
                     body: JSON.stringify({ service, apiKey })
                 });
+
+                // Check if response is JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error(`Server returned ${response.status} error. Please check your connection and try again.`);
+                }
 
                 const result = await response.json();
                 if (result.success) {
@@ -932,7 +953,12 @@
                     alert(`✗ ${service} test failed: ${result.message}`);
                 }
             } catch (error) {
-                alert(`Error testing ${service}: ${error.message}`);
+                console.error(`Test error for ${service}:`, error);
+                if (error.message.includes('JSON')) {
+                    alert(`Error: Server connection failed. Please check your internet connection and try again.`);
+                } else {
+                    alert(`Error testing ${service}: ${error.message}`);
+                }
             }
         }
 

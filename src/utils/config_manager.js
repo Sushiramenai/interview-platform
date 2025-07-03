@@ -226,17 +226,47 @@ class ConfigManager {
     async testClaude(apiKey) {
         try {
             const Anthropic = require('@anthropic-ai/sdk');
-            const anthropic = new Anthropic({ apiKey });
             
-            await anthropic.messages.create({
+            // Validate API key format
+            if (!apiKey || !apiKey.startsWith('sk-ant-')) {
+                return { success: false, message: 'Invalid API key format. Claude API keys should start with "sk-ant-"' };
+            }
+            
+            const anthropic = new Anthropic({ 
+                apiKey,
+                // Add timeout to prevent hanging
+                timeout: 10000,
+                // Ensure we're using the correct base URL
+                baseURL: 'https://api.anthropic.com'
+            });
+            
+            console.log('Testing Claude API connection...');
+            
+            const response = await anthropic.messages.create({
                 model: 'claude-3-haiku-20240307',
                 max_tokens: 10,
-                messages: [{ role: 'user', content: 'Test' }]
+                messages: [{ role: 'user', content: 'Hello' }]
             });
+            
+            console.log('Claude test response received');
             
             return { success: true, message: 'Claude API connected successfully' };
         } catch (error) {
-            return { success: false, message: error.message };
+            console.error('Claude API test error:', error);
+            
+            // Handle specific error types
+            if (error.status === 401) {
+                return { success: false, message: 'Invalid API key. Please check your Claude API key.' };
+            } else if (error.status === 429) {
+                return { success: false, message: 'Rate limit exceeded. Please try again later.' };
+            } else if (error.status === 400) {
+                return { success: false, message: 'Bad request. Please check your API key format.' };
+            } else if (error.message?.includes('fetch')) {
+                return { success: false, message: 'Network error. Please check your internet connection.' };
+            }
+            
+            // Return the actual error message
+            return { success: false, message: error.message || 'Failed to connect to Claude API' };
         }
     }
 
