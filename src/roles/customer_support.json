@@ -1,13 +1,25 @@
 {
   "role": "Customer Support Specialist",
-  "traits": ["empathetic", "calm", "solution-focused"],
+  "job_description": "We are seeking a Customer Support Specialist for our fast-growing ecommerce brand. You will be the first point of contact for our customers, handling inquiries about orders, products, and shipping. The ideal candidate has experience with ecommerce platforms, can handle high ticket volumes, and maintains a positive attitude even with difficult customers. You should be comfortable with live chat, email, and phone support.",
+  "requirements": [
+    "2+ years customer service experience, preferably in ecommerce",
+    "Experience with helpdesk software (Zendesk, Intercom, etc.)",
+    "Excellent written and verbal communication skills",
+    "Ability to handle 50+ tickets per day",
+    "Problem-solving skills and empathy"
+  ],
+  "traits": ["empathetic", "calm", "solution-focused", "efficient", "positive"],
   "questions": [
     "Tell me about a time you turned an angry customer into a happy one.",
     "How do you handle back-to-back tickets and phone calls?",
-    "What tools have you used for support?"
+    "What tools have you used for support?",
+    "How would you handle a customer who received the wrong item?",
+    "What's your approach to managing high ticket volumes?"
   ],
   "behavioral_questions": [
     "Describe a time when you failed and how you responded.",
-    "Tell me about a time you had to de-escalate a situation quickly."
+    "Tell me about a time you had to de-escalate a situation quickly.",
+    "Give an example of going above and beyond for a customer.",
+    "How do you stay motivated during repetitive tasks?"
   ]
 }

@@ -12,6 +12,7 @@ const DriveUploader = require('./src/utils/drive_upload');
 const AuthMiddleware = require('./src/middleware/auth');
 const ConfigManager = require('./src/utils/config_manager');
 const ServiceInitializer = require('./src/utils/service_initializer');
+const AutomatedInterviewSystem = require('./src/logic/automated_interview_system');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,7 +21,7 @@ const PORT = process.env.PORT || 3000;
 const configManager = new ConfigManager();
 
 // Initialize services after config
-let interviewAI, evaluator, meetGenerator, driveUploader;
+let interviewAI, evaluator, meetGenerator, driveUploader, automatedInterviewSystem;
 
 async function initializeServices() {
   await configManager.initialize();
@@ -30,6 +31,7 @@ async function initializeServices() {
   evaluator = new Evaluator();
   meetGenerator = new MeetGenerator();
   driveUploader = new DriveUploader();
+  automatedInterviewSystem = new AutomatedInterviewSystem();
 }
 
 // Initialize admin user
@@ -70,7 +72,13 @@ app.get('/setup', async (req, res) => {
 });
 
 app.get('/interview', (req, res) => {
-  res.sendFile(path.join(__dirname, 'src/ui/interview.html'));
+  // Check if it's an automated interview session
+  const sessionId = req.query.session;
+  if (sessionId) {
+    res.sendFile(path.join(__dirname, 'src/ui/automated_interview.html'));
+  } else {
+    res.sendFile(path.join(__dirname, 'src/ui/interview.html'));
+  }
 });
 
 app.get('/candidate', (req, res) => {
@@ -255,6 +263,52 @@ app.post('/api/roles', AuthMiddleware.requireAdmin, async (req, res) => {
   }
 });
 
+app.delete('/api/roles/:roleName', AuthMiddleware.requireAdmin, async (req, res) => {
+  try {
+    const filename = req.params.roleName.toLowerCase().replace(/\s+/g, '_') + '.json';
+    await fs.unlink(`src/roles/${filename}`);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Results API
+app.get('/api/results', AuthMiddleware.requireAdmin, async (req, res) => {
+  try {
+    const resultsPath = path.join(__dirname, 'data/results.json');
+    const content = await fs.readFile(resultsPath, 'utf8');
+    const results = JSON.parse(content);
+    
+    // Filter by role if specified
+    const role = req.query.role;
+    if (role) {
+      return res.json(results.filter(r => r.role === role));
+    }
+    
+    res.json(results);
+  } catch (error) {
+    res.json([]);
+  }
+});
+
+app.get('/api/results/:id', AuthMiddleware.requireAdmin, async (req, res) => {
+  try {
+    const resultsPath = path.join(__dirname, 'data/results.json');
+    const content = await fs.readFile(resultsPath, 'utf8');
+    const results = JSON.parse(content);
+    const result = results.find(r => r.id === req.params.id);
+    
+    if (!result) {
+      return res.status(404).json({ error: 'Result not found' });
+    }
+    
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Interview API Routes
 app.post('/api/meet/create', async (req, res) => {
   try {
@@ -350,6 +404,98 @@ app.get('/api/interviews/:uuid', async (req, res) => {
     res.json(JSON.parse(content));
   } catch (error) {
     res.status(404).json({ error: 'Interview not found' });
+  }
+});
+
+// Automated Interview API Routes
+app.post('/api/interview/automated/start', async (req, res) => {
+  try {
+    const { candidateName, email, role } = req.body;
+    
+    // Create Google Meet room
+    const meetInfo = await meetGenerator.createMeetRoom(
+      candidateName + '_' + Date.now(),
+      candidateName,
+      role
+    );
+    
+    // Start automated interview session
+    const session = await automatedInterviewSystem.startInterview(
+      candidateName,
+      email,
+      role,
+      meetInfo.meetUrl
+    );
+    
+    res.json({
+      id: session.id,
+      meetUrl: meetInfo.meetUrl,
+      status: session.status
+    });
+  } catch (error) {
+    console.error('Error starting automated interview:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/interview/automated/session/:sessionId', async (req, res) => {
+  try {
+    const session = automatedInterviewSystem.getActiveSession(req.params.sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    res.json({
+      id: session.id,
+      role: session.role,
+      status: session.status,
+      totalQuestions: session.questions ? session.questions.length : 0,
+      currentQuestion: session.currentQuestionIndex
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/interview/automated/next-question/:sessionId', async (req, res) => {
+  try {
+    const question = await automatedInterviewSystem.getNextQuestion(req.params.sessionId);
+    if (!question) {
+      return res.json(null);
+    }
+    
+    res.json({
+      text: question.text,
+      type: question.type,
+      audioUrl: question.audioUrl ? `/api/audio/${path.basename(question.audioUrl)}` : null
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/interview/automated/submit-answer', async (req, res) => {
+  try {
+    const { sessionId, answer } = req.body;
+    const success = await automatedInterviewSystem.submitAnswer(sessionId, answer);
+    
+    if (!success) {
+      return res.status(400).json({ error: 'Failed to submit answer' });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Serve audio files
+app.get('/api/audio/:filename', (req, res) => {
+  const audioPath = path.join(__dirname, 'temp', req.params.filename);
+  if (require('fs').existsSync(audioPath)) {
+    res.sendFile(audioPath);
+  } else {
+    res.status(404).send('Audio not found');
   }
 });
 

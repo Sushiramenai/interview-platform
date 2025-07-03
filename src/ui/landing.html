@@ -79,12 +79,39 @@
             }
         }
 
-        function startInterview() {
+        async function startInterview() {
             const params = new URLSearchParams(window.location.search);
             const role = params.get('role') || 'general';
-            const candidateId = params.get('id') || generateUUID();
             
-            window.location.href = `/interview?role=${role}&id=${candidateId}`;
+            // Get candidate information
+            const candidateName = prompt('Please enter your full name:');
+            if (!candidateName) return;
+            
+            const candidateEmail = prompt('Please enter your email address:');
+            if (!candidateEmail) return;
+            
+            // Start automated interview
+            try {
+                const response = await fetch('/api/interview/automated/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        candidateName,
+                        email: candidateEmail,
+                        role
+                    })
+                });
+                
+                if (response.ok) {
+                    const session = await response.json();
+                    window.location.href = `/interview?session=${session.id}`;
+                } else {
+                    alert('Failed to start interview. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error starting interview:', error);
+                alert('Error starting interview. Please try again.');
+            }
         }
 
         function generateUUID() {

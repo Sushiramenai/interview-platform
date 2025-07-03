@@ -1,17 +1,29 @@
 {
   "role": "Software Engineer",
-  "traits": ["technical", "problem-solver", "collaborative", "detail-oriented"],
+  "job_description": "We are looking for a Software Engineer to join our ecommerce platform team. You will be responsible for developing and maintaining our online store, payment systems, and inventory management tools. The ideal candidate has experience with web technologies, can work on both frontend and backend, and understands the importance of performance and scalability in ecommerce.",
+  "requirements": [
+    "3+ years of software development experience",
+    "Proficiency in JavaScript, Python, or Java",
+    "Experience with React, Vue, or Angular",
+    "Knowledge of SQL and NoSQL databases",
+    "Understanding of RESTful APIs and microservices",
+    "Experience with ecommerce platforms is a plus"
+  ],
+  "traits": ["technical", "problem-solver", "collaborative", "detail-oriented", "performance-focused"],
   "questions": [
     "Tell me about your experience with software development.",
     "What programming languages are you most proficient in?",
     "Describe a challenging technical problem you solved recently.",
     "How do you approach debugging complex issues?",
-    "What's your experience with agile development methodologies?"
+    "What's your experience with agile development methodologies?",
+    "How would you optimize a slow-loading ecommerce checkout page?",
+    "Describe your experience with payment gateway integrations."
   ],
   "behavioral_questions": [
     "Tell me about a time when you had to work under a tight deadline.",
     "Describe a situation where you disagreed with a technical decision. How did you handle it?",
     "Give an example of when you had to learn a new technology quickly.",
-    "Tell me about a time you mentored a junior developer."
+    "Tell me about a time you mentored a junior developer.",
+    "Describe a time when you had to balance feature development with technical debt."
   ]
 }

@@ -129,15 +129,46 @@
     
     <div class="container">
         <div class="sidebar">
-            <a href="#" class="nav-link active" data-section="interviews">Interviews</a>
+            <a href="#" class="nav-link active" data-section="results">Candidate Results</a>
             <a href="#" class="nav-link" data-section="roles">Role Templates</a>
+            <a href="#" class="nav-link" data-section="interviews">Interview Sessions</a>
             <a href="#" class="nav-link" data-section="settings">Settings</a>
             <a href="#" class="nav-link" data-section="api-config">API Configuration</a>
         </div>
         
         <div class="main-content">
+            <!-- Candidate Results Section -->
+            <div id="results" class="section active">
+                <h2>Candidate Results</h2>
+                <div class="form-group">
+                    <label>Filter by Role:</label>
+                    <select id="role-filter" onchange="filterResults()" style="width: 300px;">
+                        <option value="">All Roles</option>
+                    </select>
+                </div>
+                <table id="results-table">
+                    <thead>
+                        <tr>
+                            <th>Date/Time</th>
+                            <th>Candidate Name</th>
+                            <th>Role</th>
+                            <th>Overall Score</th>
+                            <th>Communication</th>
+                            <th>Technical Fit</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-tbody">
+                        <tr>
+                            <td colspan="8" style="text-align: center;">No candidates have completed interviews yet</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
             <!-- Interviews Section -->
-            <div id="interviews" class="section active">
+            <div id="interviews" class="section">
                 <h2>Recent Interviews</h2>
                 <div id="api-warning" style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; margin-bottom: 20px; border-radius: 6px; display: none;">
                     <strong>⚠️ Setup Required:</strong> Please configure your API keys in the <a href="#" onclick="showSection('api-config'); return false;">API Configuration</a> section to enable interviews.
@@ -181,6 +212,14 @@
                     <div class="form-group">
                         <label>Role Name</label>
                         <input type="text" id="role-name" placeholder="e.g., Customer Support Specialist">
+                    </div>
+                    <div class="form-group">
+                        <label>Job Description</label>
+                        <textarea id="job-description" placeholder="Describe the role, responsibilities, and ideal candidate..." style="min-height: 100px;"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Requirements (one per line)</label>
+                        <textarea id="requirements" placeholder="2+ years experience&#10;Bachelor's degree preferred&#10;Excellent communication skills" style="min-height: 80px;"></textarea>
                     </div>
                     <div class="form-group">
                         <label>Key Traits (comma-separated)</label>
@@ -351,12 +390,17 @@
                 container.innerHTML = roles.map(role => `
                     <div style="background: #f8f9fa; padding: 20px; margin-bottom: 20px; border-radius: 8px;">
                         <h3>${role.role}</h3>
+                        <p><strong>Description:</strong> ${role.job_description || 'No description provided'}</p>
                         <p><strong>Traits:</strong> ${role.traits.join(', ')}</p>
                         <p><strong>Questions:</strong> ${role.questions.length} interview + ${role.behavioral_questions.length} behavioral</p>
-                        <button class="btn" onclick="editRole('${role.role}')">Edit</button>
+                        <p><strong>Interview URL:</strong> <code>${window.location.origin}/candidate?role=${encodeURIComponent(role.role.toLowerCase().replace(/\s+/g, '_'))}</code></p>
+                        <button class="btn" onclick='editRole(${JSON.stringify(role).replace(/'/g, "&apos;")})'>Edit</button>
                         <button class="btn btn-danger" onclick="deleteRole('${role.role}')">Delete</button>
                     </div>
                 `).join('');
+                
+                // Update role filter in results
+                updateRoleFilter(roles);
             } catch (error) {
                 console.error('Error loading roles:', error);
             }
@@ -398,10 +442,66 @@
         // Role management
         function showNewRoleForm() {
             document.getElementById('role-form').style.display = 'block';
+            document.getElementById('role-name').value = '';
+            document.getElementById('job-description').value = '';
+            document.getElementById('requirements').value = '';
+            document.getElementById('role-traits').value = '';
             document.getElementById('questions-container').innerHTML = '';
             document.getElementById('behavioral-container').innerHTML = '';
             addQuestion();
             addBehavioralQuestion();
+        }
+
+        function editRole(role) {
+            document.getElementById('role-form').style.display = 'block';
+            document.getElementById('role-name').value = role.role;
+            document.getElementById('job-description').value = role.job_description || '';
+            document.getElementById('requirements').value = role.requirements ? role.requirements.join('\n') : '';
+            document.getElementById('role-traits').value = role.traits.join(', ');
+            
+            // Load questions
+            document.getElementById('questions-container').innerHTML = '';
+            role.questions.forEach(q => {
+                const container = document.getElementById('questions-container');
+                const div = document.createElement('div');
+                div.className = 'form-group';
+                div.innerHTML = `
+                    <input type="text" class="question-input" value="${q}" placeholder="Enter interview question">
+                    <button class="btn btn-danger" onclick="this.parentElement.remove()">Remove</button>
+                `;
+                container.appendChild(div);
+            });
+            
+            // Load behavioral questions
+            document.getElementById('behavioral-container').innerHTML = '';
+            role.behavioral_questions.forEach(q => {
+                const container = document.getElementById('behavioral-container');
+                const div = document.createElement('div');
+                div.className = 'form-group';
+                div.innerHTML = `
+                    <input type="text" class="behavioral-input" value="${q}" placeholder="Enter behavioral question">
+                    <button class="btn btn-danger" onclick="this.parentElement.remove()">Remove</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        async function deleteRole(roleName) {
+            if (!confirm(`Are you sure you want to delete the ${roleName} role?`)) return;
+            
+            try {
+                const response = await fetch(`/api/roles/${encodeURIComponent(roleName)}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    alert('Role deleted successfully!');
+                    loadRoles();
+                }
+            } catch (error) {
+                console.error('Error deleting role:', error);
+                alert('Error deleting role');
+            }
         }
 
         function hideRoleForm() {
@@ -413,8 +513,8 @@
             const div = document.createElement('div');
             div.className = 'form-group';
             div.innerHTML = `
-                <input type="text" class="question-input" placeholder="Enter interview question">
-                <button class="btn btn-danger" onclick="this.parentElement.remove()">Remove</button>
+                <input type="text" class="question-input" placeholder="Enter interview question" style="width: calc(100% - 100px);">
+                <button class="btn btn-danger" onclick="this.parentElement.remove()" style="width: 80px; margin-left: 10px;">Remove</button>
             `;
             container.appendChild(div);
         }
@@ -424,8 +524,8 @@
             const div = document.createElement('div');
             div.className = 'form-group';
             div.innerHTML = `
-                <input type="text" class="behavioral-input" placeholder="Enter behavioral question">
-                <button class="btn btn-danger" onclick="this.parentElement.remove()">Remove</button>
+                <input type="text" class="behavioral-input" placeholder="Enter behavioral question" style="width: calc(100% - 100px);">
+                <button class="btn btn-danger" onclick="this.parentElement.remove()" style="width: 80px; margin-left: 10px;">Remove</button>
             `;
             container.appendChild(div);
         }
@@ -433,10 +533,17 @@
         async function saveRole() {
             const role = {
                 role: document.getElementById('role-name').value,
+                job_description: document.getElementById('job-description').value,
+                requirements: document.getElementById('requirements').value.split('\n').filter(r => r.trim()),
                 traits: document.getElementById('role-traits').value.split(',').map(t => t.trim()),
                 questions: Array.from(document.querySelectorAll('.question-input')).map(i => i.value).filter(v => v),
                 behavioral_questions: Array.from(document.querySelectorAll('.behavioral-input')).map(i => i.value).filter(v => v)
             };
+            
+            if (!role.role) {
+                alert('Please enter a role name');
+                return;
+            }
             
             try {
                 const response = await fetch('/api/roles', {
@@ -585,16 +692,82 @@
             }, 2000);
         }
 
+        // Results management
+        async function loadResults() {
+            try {
+                const response = await fetch('/api/results');
+                const results = await response.json();
+                const tbody = document.getElementById('results-tbody');
+                
+                if (results.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">No candidates have completed interviews yet</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = results.map(result => `
+                    <tr>
+                        <td>${new Date(result.completedAt).toLocaleString()}</td>
+                        <td>${result.candidateName}</td>
+                        <td>${result.role}</td>
+                        <td><strong>${result.overallScore}/10</strong></td>
+                        <td>${result.communicationScore}/10</td>
+                        <td>${result.technicalScore}/10</td>
+                        <td><span class="badge ${result.overallScore >= 7 ? 'badge-success' : result.overallScore >= 5 ? 'badge-warning' : 'badge-danger'}">${result.overallScore >= 7 ? 'Strong' : result.overallScore >= 5 ? 'Maybe' : 'Weak'}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="viewResult('${result.id}')">View Details</button>
+                            <button class="btn btn-sm" onclick="viewRecording('${result.recordingUrl}')">Recording</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading results:', error);
+            }
+        }
+        
+        function updateRoleFilter(roles) {
+            const filter = document.getElementById('role-filter');
+            filter.innerHTML = '<option value="">All Roles</option>' + 
+                roles.map(r => `<option value="${r.role}">${r.role}</option>`).join('');
+        }
+        
+        function filterResults() {
+            const role = document.getElementById('role-filter').value;
+            loadResults(role);
+        }
+        
+        async function viewResult(resultId) {
+            try {
+                const response = await fetch(`/api/results/${resultId}`);
+                const result = await response.json();
+                
+                // Show detailed modal or navigate to detail page
+                alert(`Candidate: ${result.candidateName}\nScore: ${result.overallScore}/10\nSummary: ${result.summary}`);
+            } catch (error) {
+                console.error('Error viewing result:', error);
+            }
+        }
+        
+        function viewRecording(url) {
+            if (url) {
+                window.open(url, '_blank');
+            } else {
+                alert('Recording not available');
+            }
+        }
+
         // Initialize
         checkAuth();
-        loadInterviews();
+        loadResults();
         loadRoles();
         loadSettings();
         loadApiKeys();
+        loadInterviews();
         
         // Set interview URL
         const baseUrl = window.location.origin;
-        document.getElementById('interview-url').textContent = `${baseUrl}/candidate?role=ROLE_NAME`;
+        if (document.getElementById('interview-url')) {
+            document.getElementById('interview-url').textContent = `${baseUrl}/candidate?role=ROLE_NAME`;
+        }
     </script>
 </body>
 </html>
