@@ -312,7 +312,9 @@
         // Check authentication on load
         async function checkAuth() {
             try {
-                const response = await fetch('/api/auth/check');
+                const response = await fetch('/api/auth/check', {
+                    credentials: 'same-origin'
+                });
                 if (!response.ok) {
                     window.location.href = '/login';
                 }
@@ -331,7 +333,10 @@
         }
 
         async function logout() {
-            await fetch('/api/auth/logout', { method: 'POST' });
+            await fetch('/api/auth/logout', { 
+                method: 'POST',
+                credentials: 'same-origin'
+            });
             window.location.href = '/login';
         }
 
@@ -386,7 +391,9 @@
         // Load roles
         async function loadRoles() {
             try {
-                const response = await fetch('/api/roles');
+                const response = await fetch('/api/roles', {
+                    credentials: 'same-origin'
+                });
                 const roles = await response.json();
                 const container = document.getElementById('roles-list');
                 
@@ -420,7 +427,9 @@
         // Load settings
         async function loadSettings() {
             try {
-                const response = await fetch('/api/settings');
+                const response = await fetch('/api/settings', {
+                    credentials: 'same-origin'
+                });
                 const settings = await response.json();
                 document.getElementById('intro-content').value = settings.intro_content || '';
             } catch (error) {
@@ -438,6 +447,7 @@
                 const response = await fetch('/api/settings', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
                     body: JSON.stringify(settings)
                 });
                 
@@ -510,7 +520,8 @@
             
             try {
                 const response = await fetch(`/api/roles/${encodeURIComponent(roleName)}`, {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    credentials: 'same-origin'
                 });
                 
                 if (response.ok) {
@@ -568,6 +579,7 @@
                 const response = await fetch('/api/roles', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
                     body: JSON.stringify(role)
                 });
                 
@@ -585,7 +597,9 @@
         // API Configuration Functions
         async function loadApiKeys() {
             try {
-                const response = await fetch('/api/config/keys');
+                const response = await fetch('/api/config/keys', {
+                    credentials: 'same-origin'
+                });
                 const keys = await response.json();
                 
                 let hasClaudeKey = false;
@@ -704,6 +718,7 @@
                 const response = await fetch('/api/config/keys', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin', // Include cookies for authentication
                     body: JSON.stringify(keys)
                 });
 
@@ -711,7 +726,9 @@
                     alert('API keys saved successfully!');
                     loadApiKeys();
                 } else {
-                    alert('Error saving API keys');
+                    const errorData = await response.json();
+                    console.error('Server error:', errorData);
+                    alert(`Error saving API keys: ${errorData.error || 'Unknown error'}`);
                 }
             } catch (error) {
                 console.error('Error saving API keys:', error);
@@ -745,6 +762,7 @@
                 const response = await fetch('/api/config/test', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
                     body: JSON.stringify({ service, apiKey })
                 });
 

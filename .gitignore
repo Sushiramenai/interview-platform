@@ -54,6 +54,8 @@ transcripts/
 
 # Interview data (keep structure, ignore content)
 data/interviews.json
+data/config.json
+data/results.json
 src/reports/*.json
 
 # Replit

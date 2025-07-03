@@ -27,15 +27,23 @@ class ConfigManager {
     }
 
     encrypt(text) {
-        const iv = crypto.randomBytes(16);
-        const salt = crypto.randomBytes(64);
-        const key = crypto.pbkdf2Sync(this.secretKey, salt, 100000, 32, 'sha256');
-        
-        const cipher = crypto.createCipheriv(this.algorithm, key, iv);
-        const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
-        const tag = cipher.getAuthTag();
-        
-        return Buffer.concat([salt, iv, tag, encrypted]).toString('base64');
+        try {
+            console.log('Encrypting text...');
+            const iv = crypto.randomBytes(16);
+            const salt = crypto.randomBytes(64);
+            const key = crypto.pbkdf2Sync(this.secretKey, salt, 100000, 32, 'sha256');
+            
+            const cipher = crypto.createCipheriv(this.algorithm, key, iv);
+            const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
+            const tag = cipher.getAuthTag();
+            
+            const result = Buffer.concat([salt, iv, tag, encrypted]).toString('base64');
+            console.log('Encryption successful');
+            return result;
+        } catch (error) {
+            console.error('Encryption error:', error);
+            throw error;
+        }
     }
 
     decrypt(encryptedData) {
@@ -69,7 +77,14 @@ class ConfigManager {
     }
 
     async saveConfig(config) {
-        await fs.writeFile(this.configPath, JSON.stringify(config, null, 2));
+        try {
+            console.log('Saving config to:', this.configPath);
+            await fs.writeFile(this.configPath, JSON.stringify(config, null, 2));
+            console.log('Config file written successfully');
+        } catch (error) {
+            console.error('Error writing config file:', error);
+            throw error;
+        }
     }
 
     async getApiKeys() {
@@ -88,20 +103,31 @@ class ConfigManager {
     }
 
     async setApiKey(keyName, keyValue) {
-        const config = await this.getConfig();
-        
-        if (!config.apiKeys) {
-            config.apiKeys = {};
+        try {
+            console.log(`ConfigManager.setApiKey called for ${keyName}`);
+            const config = await this.getConfig();
+            
+            if (!config.apiKeys) {
+                config.apiKeys = {};
+            }
+            
+            // Encrypt sensitive keys
+            if (keyValue && keyValue.trim()) {
+                console.log(`Encrypting key ${keyName}`);
+                const encrypted = this.encrypt(keyValue);
+                config.apiKeys[keyName] = 'enc:' + encrypted;
+                console.log(`Key ${keyName} encrypted successfully`);
+            } else {
+                delete config.apiKeys[keyName];
+            }
+            
+            console.log(`Saving config with keys:`, Object.keys(config.apiKeys));
+            await this.saveConfig(config);
+            console.log(`Config saved successfully for ${keyName}`);
+        } catch (error) {
+            console.error(`Error in setApiKey for ${keyName}:`, error);
+            throw error;
         }
-        
-        // Encrypt sensitive keys
-        if (keyValue && keyValue.trim()) {
-            config.apiKeys[keyName] = 'enc:' + this.encrypt(keyValue);
-        } else {
-            delete config.apiKeys[keyName];
-        }
-        
-        await this.saveConfig(config);
     }
 
     async updateSettings(settings) {

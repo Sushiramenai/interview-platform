@@ -151,6 +151,7 @@ A: Yes! Each interview has unique links, one-time use only.
 - **Can't login?** Check caps lock (Username: Admin)
 - **Bot not joining?** Upgrade to Replit Hacker plan
 - **API errors?** Double-check your keys in settings
+- **"Error saving API keys"?** See [FIXES_APPLIED.md](FIXES_APPLIED.md)
 
 ### Support:
 - Create an [Issue](https://github.com/Sushiramenai/interview-platform/issues)

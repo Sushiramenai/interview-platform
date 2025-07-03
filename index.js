@@ -54,7 +54,13 @@ app.use(express.static('src/ui'));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'interview-platform-secret',
   resave: false,
-  saveUninitialized: true
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: 'lax'
+  }
 }));
 
 // Simple middleware - just check authentication for protected routes
@@ -214,17 +220,29 @@ app.get('/api/config/keys', AuthMiddleware.requireAdmin, async (req, res) => {
 
 app.post('/api/config/keys', AuthMiddleware.requireAdmin, async (req, res) => {
   try {
+    console.log('Saving API keys:', Object.keys(req.body));
+    console.log('User authenticated:', req.user);
     const keys = req.body;
+    
+    // Ensure config manager is initialized
+    await configManager.initialize();
     
     for (const [key, value] of Object.entries(keys)) {
       if (value && !value.includes('••••')) {
         const keyName = key.toUpperCase().replace(/-/g, '_');
+        console.log(`Setting API key: ${keyName}`);
         await configManager.setApiKey(keyName, value);
       }
     }
     
+    // Re-initialize services with new keys
+    await ServiceInitializer.initializeAllServices(configManager);
+    
+    console.log('API keys saved successfully');
     res.json({ success: true });
   } catch (error) {
+    console.error('Error saving API keys:', error);
+    console.error('Stack trace:', error.stack);
     res.status(500).json({ error: error.message });
   }
 });
@@ -441,9 +459,18 @@ app.post('/api/interview/automated/start', async (req, res) => {
   try {
     const { candidateName, email, role } = req.body;
     
-    // Check if Recall.ai is configured
-    const hasRecallAI = !!process.env.RECALL_API_KEY;
-    const hasElevenLabs = !!process.env.ELEVENLABS_API_KEY;
+    // Check API keys from ConfigManager
+    const apiKeys = await configManager.getApiKeys();
+    const hasRecallAI = !!apiKeys.RECALL_API_KEY;
+    const hasElevenLabs = !!apiKeys.ELEVENLABS_API_KEY;
+    const hasGoogleCreds = !!apiKeys.GOOGLE_CREDENTIALS;
+    const hasClaude = !!apiKeys.CLAUDE_API_KEY;
+    
+    if (!hasClaude || !hasGoogleCreds || !hasElevenLabs) {
+      return res.status(400).json({ 
+        error: 'System not configured. Please set up Claude AI, Google Services, and ElevenLabs API keys in the admin panel.'
+      });
+    }
     
     if (hasRecallAI) {
       // Use Recall.ai bot (expensive option)

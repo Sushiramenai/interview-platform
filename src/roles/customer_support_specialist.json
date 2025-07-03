@@ -1,0 +1,27 @@
+{
+  "role": "Customer Support Specialist",
+  "job_description": "We are looking for a friendly and patient Customer Support Specialist to help our customers with their inquiries and issues.",
+  "requirements": [
+    "2+ years of customer service experience",
+    "Excellent communication skills",
+    "Problem-solving abilities",
+    "Basic technical knowledge"
+  ],
+  "traits": [
+    "empathetic",
+    "patient",
+    "solution-focused",
+    "clear communicator"
+  ],
+  "questions": [
+    "Tell me about yourself and why you're interested in customer support.",
+    "Describe a time when you dealt with a difficult customer. How did you handle it?",
+    "What do you think makes great customer service?",
+    "How do you stay calm under pressure?"
+  ],
+  "behavioral_questions": [
+    "Give me an example of when you went above and beyond for a customer.",
+    "Tell me about a time when you had to learn something new quickly to help a customer.",
+    "Describe a situation where you had to work with a team to resolve a customer issue."
+  ]
+}
