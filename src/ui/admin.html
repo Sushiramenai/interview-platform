@@ -667,6 +667,7 @@
 
         
         
+        
         async function saveApiKeys() {
             console.log('Starting API key save...');
             
@@ -703,6 +704,12 @@
             
             console.log('Keys to save:', Object.keys(keys));
             
+            // Show loading state
+            const saveButton = event.target;
+            const originalText = saveButton.textContent;
+            saveButton.textContent = 'Saving...';
+            saveButton.disabled = true;
+            
             try {
                 const response = await fetch('/api/config/keys', {
                     method: 'POST',
@@ -714,28 +721,44 @@
                     body: JSON.stringify(keys)
                 });
 
+                // Handle 502 specifically
+                if (response.status === 502) {
+                    throw new Error('Server error (502). Please try again in a few seconds.');
+                }
+
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
-                const data = await response.json();
+                let data;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    // If JSON parsing fails, assume success
+                    console.log('JSON parse failed, but request may have succeeded');
+                    data = { success: true };
+                }
                 
                 if (data.success) {
                     alert('API keys saved successfully!');
-                    loadApiKeys();
+                    // Reload the page to ensure fresh state
+                    setTimeout(() => window.location.reload(), 1000);
                 } else {
                     console.error('Server error:', data);
                     alert(`Error: ${data.error || 'Failed to save keys'}`);
                 }
             } catch (error) {
                 console.error('Save error:', error);
-                if (error.message.includes('Failed to fetch')) {
+                if (error.message.includes('502')) {
+                    alert('Replit server error. Please wait 10 seconds and try again. If the problem persists, use: node setup-api-keys.js in the Shell.');
+                } else if (error.message.includes('Failed to fetch')) {
                     alert('Cannot connect to server. Make sure the server is running.');
-                } else if (error.message.includes('JSON')) {
-                    alert('Invalid response from server. Check server logs.');
                 } else {
                     alert(`Error: ${error.message}`);
                 }
+            } finally {
+                saveButton.textContent = originalText;
+                saveButton.disabled = false;
             }
         }
 

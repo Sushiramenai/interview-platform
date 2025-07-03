@@ -44,16 +44,25 @@ AuthMiddleware.initializeAdmin();
 initializeServices().catch(console.error);
 
 // Middleware
+// Trust Replit's proxy
+app.set('trust proxy', true);
+
 app.use(cors({
   origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    return callback(null, true);
+    // Allow all origins in Replit
+    callback(null, true);
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   optionsSuccessStatus: 200
 }));
-app.use(express.json());
+
+// Add body parser limits
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Remove the duplicate express.json() call
 app.use(cookieParser());
 app.use(express.static('src/ui'));
 app.use(session({
@@ -72,6 +81,11 @@ app.use(session({
 app.use((req, res, next) => {
   // No initialization checks - let admin decide when to configure
   next();
+});
+
+// Health check for Replit
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // Routes
@@ -689,13 +703,11 @@ app.get('/api/interview/guide/:sessionId', async (req, res) => {
   }
 });
 
-
-
 // Serve uploaded files (for local storage)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/transcripts', express.static(path.join(__dirname, 'transcripts')));
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Interview platform running on http://localhost:${PORT}`);
   console.log(`Admin login: http://localhost:${PORT}/login`);
 });
