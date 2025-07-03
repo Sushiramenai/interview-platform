@@ -47,7 +47,15 @@ AuthMiddleware.initializeAdmin();
 initializeServices().catch(console.error);
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    return callback(null, true);
+  },
+  credentials: true,
+  optionsSuccessStatus: 200
+}));
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.static('src/ui'));
@@ -220,30 +228,60 @@ app.get('/api/config/keys', AuthMiddleware.requireAdmin, async (req, res) => {
 
 app.post('/api/config/keys', AuthMiddleware.requireAdmin, async (req, res) => {
   try {
-    console.log('Saving API keys:', Object.keys(req.body));
-    console.log('User authenticated:', req.user);
+    console.log('API Save Request:');
+    console.log('- User:', req.user);
+    console.log('- Body keys:', Object.keys(req.body));
+    
     const keys = req.body;
+    
+    if (!keys || Object.keys(keys).length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'No keys provided' 
+      });
+    }
     
     // Ensure config manager is initialized
     await configManager.initialize();
     
+    // Save each key
+    const saved = [];
+    const errors = [];
+    
     for (const [key, value] of Object.entries(keys)) {
-      if (value && !value.includes('••••')) {
-        const keyName = key.toUpperCase().replace(/-/g, '_');
-        console.log(`Setting API key: ${keyName}`);
-        await configManager.setApiKey(keyName, value);
+      if (value && typeof value === 'string' && value.trim()) {
+        try {
+          const keyName = key.toUpperCase().replace(/-/g, '_');
+          await configManager.setApiKey(keyName, value.trim());
+          saved.push(keyName);
+          console.log(`✅ Saved: ${keyName}`);
+        } catch (err) {
+          errors.push(`${key}: ${err.message}`);
+          console.error(`❌ Failed to save ${key}:`, err);
+        }
       }
+    }
+    
+    if (errors.length > 0) {
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Some keys failed to save', 
+        details: errors 
+      });
     }
     
     // Re-initialize services with new keys
     await ServiceInitializer.initializeAllServices(configManager);
     
-    console.log('API keys saved successfully');
-    res.json({ success: true });
+    console.log(`✅ Saved ${saved.length} API keys successfully`);
+    res.json({ success: true, saved: saved });
   } catch (error) {
-    console.error('Error saving API keys:', error);
-    console.error('Stack trace:', error.stack);
-    res.status(500).json({ error: error.message });
+    console.error('❌ API Save Error:', error);
+    console.error('Stack:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Internal server error' 
+    });
   }
 });
 
@@ -459,6 +497,18 @@ app.post('/api/interview/automated/start', async (req, res) => {
   try {
     const { candidateName, email, role } = req.body;
     
+    console.log('Interview start request:', { candidateName, email, role });
+    
+    // Validate input
+    if (!candidateName || !email || !role) {
+      return res.status(400).json({ 
+        error: 'Please provide candidate name, email, and role' 
+      });
+    }
+    
+    // Ensure services are initialized
+    await configManager.initialize();
+    
     // Check API keys from ConfigManager
     const apiKeys = await configManager.getApiKeys();
     const hasRecallAI = !!apiKeys.RECALL_API_KEY;
@@ -466,48 +516,72 @@ app.post('/api/interview/automated/start', async (req, res) => {
     const hasGoogleCreds = !!apiKeys.GOOGLE_CREDENTIALS;
     const hasClaude = !!apiKeys.CLAUDE_API_KEY;
     
+    console.log('API key status:', {
+      claude: hasClaude,
+      google: hasGoogleCreds,
+      elevenlabs: hasElevenLabs,
+      recall: hasRecallAI
+    });
+    
     if (!hasClaude || !hasGoogleCreds || !hasElevenLabs) {
+      const missing = [];
+      if (!hasClaude) missing.push('Claude AI');
+      if (!hasGoogleCreds) missing.push('Google Services');
+      if (!hasElevenLabs) missing.push('ElevenLabs');
+      
       return res.status(400).json({ 
-        error: 'System not configured. Please set up Claude AI, Google Services, and ElevenLabs API keys in the admin panel.'
+        error: `Missing required API keys: ${missing.join(', ')}. Please configure them in the admin panel.`
       });
     }
     
-    if (hasRecallAI) {
-      // Use Recall.ai bot (expensive option)
-      const result = await videoInterviewOrchestrator.startVideoInterview(
-        candidateName,
-        email,
-        role.toLowerCase().replace(/\s+/g, '_')
-      );
+    // Ensure services are initialized with latest keys
+    await ServiceInitializer.initializeAllServices(configManager);
+    
+    const roleSlug = role.toLowerCase().replace(/\s+/g, '_');
+    
+    try {
+      let result;
+      
+      if (hasRecallAI) {
+        // Use Recall.ai bot (expensive option)
+        console.log('Starting interview with Recall.ai mode');
+        result = await videoInterviewOrchestrator.startVideoInterview(
+          candidateName,
+          email,
+          roleSlug
+        );
+      } else if (hasElevenLabs) {
+        // Use self-hosted bot with ElevenLabs voice
+        console.log('Starting interview with self-hosted bot mode');
+        result = await selfHostedInterviewOrchestrator.startVideoInterview(
+          candidateName,
+          email,
+          roleSlug
+        );
+      } else {
+        // This shouldn't happen as we check for ElevenLabs above
+        throw new Error('ElevenLabs is required but not configured');
+      }
+      
+      console.log('Interview started successfully:', result.sessionId);
       
       res.json({
         id: result.sessionId,
         meetUrl: result.meetUrl,
         instructions: result.instructions,
         status: 'ready',
-        mode: 'recall-ai'
+        mode: hasRecallAI ? 'recall-ai' : 'self-hosted-bot'
       });
-    } else if (hasElevenLabs) {
-      // Use self-hosted bot with ElevenLabs voice
-      const result = await selfHostedInterviewOrchestrator.startVideoInterview(
-        candidateName,
-        email,
-        role.toLowerCase().replace(/\s+/g, '_')
-      );
       
-      res.json({
-        id: result.sessionId,
-        meetUrl: result.meetUrl,
-        instructions: result.instructions,
-        status: 'ready',
-        mode: 'self-hosted-bot'
-      });
-    } else {
-      // Fallback to manual interview mode
+    } catch (innerError) {
+      console.error('Interview orchestration error:', innerError);
+      
+      // Fallback to manual mode if bot fails
+      console.log('Falling back to manual interview mode');
       const result = await manualInterviewOrchestrator.startVideoInterview(
         candidateName,
         email,
-        role.toLowerCase().replace(/\s+/g, '_')
+        roleSlug
       );
       
       res.json({
@@ -516,12 +590,17 @@ app.post('/api/interview/automated/start', async (req, res) => {
         instructions: result.instructions,
         interviewGuideUrl: result.interviewGuideUrl,
         status: 'ready',
-        mode: 'manual'
+        mode: 'manual',
+        notice: 'AI bot unavailable - manual interview mode activated'
       });
     }
+    
   } catch (error) {
-    console.error('Error starting interview:', error);
-    res.status(500).json({ error: error.message });
+    console.error('❌ Interview start error:', error);
+    console.error('Stack:', error.stack);
+    res.status(500).json({ 
+      error: `Failed to start interview: ${error.message}` 
+    });
   }
 });
 

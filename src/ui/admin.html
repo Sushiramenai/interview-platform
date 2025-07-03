@@ -680,59 +680,63 @@
             `;
         }
 
+        
         async function saveApiKeys() {
-            const keys = {
-                claude_api_key: document.getElementById('claude-key').value,
-                google_credentials: document.getElementById('google-creds').value,
-                elevenlabs_api_key: document.getElementById('elevenlabs-key').value,
-                recall_api_key: document.getElementById('recall-key').value
-            };
-
-            // Check required keys
-            if (!keys.claude_api_key || keys.claude_api_key.includes('••••')) {
-                if (!document.getElementById('claude-key').value.includes('••••')) {
-                    alert('Claude API key is required');
-                    return;
-                }
+            console.log('Starting API key save...');
+            
+            const keys = {};
+            
+            // Get values from form
+            const claudeValue = document.getElementById('claude-key').value.trim();
+            const googleValue = document.getElementById('google-creds').value.trim();
+            const elevenValue = document.getElementById('elevenlabs-key').value.trim();
+            const recallValue = document.getElementById('recall-key').value.trim();
+            
+            // Only include non-masked values
+            if (claudeValue && !claudeValue.includes('••••')) {
+                keys.claude_api_key = claudeValue;
             }
-            if (!keys.google_credentials || keys.google_credentials === '{ ... }') {
-                alert('Google Service Account credentials are required');
+            if (googleValue && googleValue !== '{ ... }' && !googleValue.includes('••••')) {
+                keys.google_credentials = googleValue;
+            }
+            if (elevenValue && !elevenValue.includes('••••')) {
+                keys.elevenlabs_api_key = elevenValue;
+            }
+            if (recallValue && !recallValue.includes('••••')) {
+                keys.recall_api_key = recallValue;
+            }
+            
+            // Check if we have any keys to save
+            if (Object.keys(keys).length === 0) {
+                alert('No new API keys to save. Please enter at least one new key.');
                 return;
             }
-            if (!keys.elevenlabs_api_key || keys.elevenlabs_api_key.includes('••••')) {
-                if (!document.getElementById('elevenlabs-key').value.includes('••••')) {
-                    alert('ElevenLabs API key is required for voice synthesis');
-                    return;
-                }
-            }
-            // Recall.ai is optional - don't require it
-
-            // Don't save masked values
-            Object.keys(keys).forEach(key => {
-                if (keys[key].includes('••••')) {
-                    delete keys[key];
-                }
-            });
-
+            
+            console.log('Keys to save:', Object.keys(keys));
+            
             try {
                 const response = await fetch('/api/config/keys', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'same-origin', // Include cookies for authentication
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'include', // Changed from 'same-origin' to 'include'
                     body: JSON.stringify(keys)
                 });
 
-                if (response.ok) {
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
                     alert('API keys saved successfully!');
                     loadApiKeys();
                 } else {
-                    const errorData = await response.json();
-                    console.error('Server error:', errorData);
-                    alert(`Error saving API keys: ${errorData.error || 'Unknown error'}`);
+                    console.error('Server response:', response.status, data);
+                    alert(`Error saving API keys: ${data.error || 'Unknown error'}`);
                 }
             } catch (error) {
-                console.error('Error saving API keys:', error);
-                alert('Error saving API keys');
+                console.error('Request error:', error);
+                alert('Network error saving API keys. Check console for details.');
             }
         }
 
