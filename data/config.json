@@ -1,8 +1,6 @@
 {
   "initialized": false,
-  "apiKeys": {
-    "TEST_KEY": "enc:i9Zv4KTdgtnrVEBRgjIb0nmDgvoMxVlF8Sy9ca1E0IMFBDLKsE3BGNGvPfsrrUHe4v6XXPhcXQZuRFqelwHv/SYEEYKSH7+waYQ0LK4dfvQ+xgtvGcTHSaKNCOHihiKySDklDvrjY6ybfLvzl6uWAA=="
-  },
+  "apiKeys": {},
   "settings": {
     "intro_content": "# Welcome to Your Interview\n\nWe are excited to meet you!",
     "company_name": "Your Company",

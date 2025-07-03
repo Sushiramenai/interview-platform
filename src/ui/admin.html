@@ -293,6 +293,12 @@
                     </div>
                 </div>
                 <button class="btn btn-primary" onclick="saveApiKeys()">Save All API Keys</button>
+                <div id="save-progress" style="margin-top: 20px; display: none;">
+                    <div style="background: #e3f2fd; padding: 15px; border-radius: 8px;">
+                        <h4>Saving Progress:</h4>
+                        <div id="progress-details"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -681,56 +687,112 @@
             console.log('Starting API key save...');
             
             const keys = {};
+            const keyList = [];
             
             // Get values from form
             const claudeValue = document.getElementById('claude-key').value.trim();
             const googleValue = document.getElementById('google-creds').value.trim();
             const elevenValue = document.getElementById('elevenlabs-key').value.trim();
             
-            // Only include non-masked values
+            // Build list of keys to save
             if (claudeValue && !claudeValue.includes('••••')) {
-                keys.claude_api_key = claudeValue;
+                keyList.push({ name: 'claude_api_key', value: claudeValue, displayName: 'Claude API' });
             }
             if (googleValue && googleValue !== '{ ... }' && !googleValue.includes('••••')) {
                 // Validate JSON
                 try {
                     JSON.parse(googleValue);
-                    keys.google_credentials = googleValue;
+                    keyList.push({ name: 'google_credentials', value: googleValue, displayName: 'Google Credentials' });
                 } catch (e) {
                     alert('Invalid Google Service Account JSON format');
                     return;
                 }
             }
             if (elevenValue && !elevenValue.includes('••••')) {
-                keys.elevenlabs_api_key = elevenValue;
+                keyList.push({ name: 'elevenlabs_api_key', value: elevenValue, displayName: 'ElevenLabs API' });
             }
             
             // Check if we have any keys to save
-            if (Object.keys(keys).length === 0) {
+            if (keyList.length === 0) {
                 alert('No new API keys to save. Please enter at least one new key.');
                 return;
             }
             
-            console.log('Keys to save:', Object.keys(keys));
+            console.log('Keys to save:', keyList.map(k => k.name));
             console.log('Environment: ', isReplit ? 'Replit' : 'Standard');
             
             // Show loading state
             const saveButton = event.target;
             const originalText = saveButton.textContent;
-            saveButton.textContent = 'Saving...';
             saveButton.disabled = true;
             
-            // Retry logic for resilience
-            const maxAttempts = isReplit ? 3 : 1;
-            let attempts = 0;
-            
-            async function attemptSave() {
-                attempts++;
-                try {
-                    const timeout = isReplit ? 25000 : 10000;
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), timeout);
+            // On Replit, save keys individually
+            if (isReplit && keyList.length > 1) {
+                console.log('Using individual save strategy for Replit');
+                
+                // Show progress
+                document.getElementById('save-progress').style.display = 'block';
+                const progressDiv = document.getElementById('progress-details');
+                
+                let savedCount = 0;
+                const errors = [];
+                
+                // Save each key individually
+                for (const keyInfo of keyList) {
+                    progressDiv.innerHTML = `Saving ${keyInfo.displayName}... (${savedCount + 1}/${keyList.length})`;
                     
+                    try {
+                        const response = await fetch('/api/config/key', {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json'
+                            },
+                            credentials: 'same-origin',
+                            body: JSON.stringify({
+                                keyName: keyInfo.name,
+                                keyValue: keyInfo.value
+                            })
+                        });
+                        
+                        if (response.ok) {
+                            savedCount++;
+                            progressDiv.innerHTML += ' ✅<br>';
+                        } else {
+                            const error = await response.json();
+                            errors.push(`${keyInfo.displayName}: ${error.error}`);
+                            progressDiv.innerHTML += ' ❌<br>';
+                        }
+                        
+                        // Small delay between saves on Replit
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        
+                    } catch (error) {
+                        errors.push(`${keyInfo.displayName}: ${error.message}`);
+                        progressDiv.innerHTML += ' ❌<br>';
+                    }
+                }
+                
+                // Show final result
+                if (errors.length === 0) {
+                    progressDiv.innerHTML += '<br><strong>✅ All keys saved successfully!</strong>';
+                    setTimeout(() => window.location.reload(), 2000);
+                } else {
+                    progressDiv.innerHTML += '<br><strong>⚠️ Some keys failed to save:</strong><br>';
+                    errors.forEach(err => progressDiv.innerHTML += `- ${err}<br>`);
+                }
+                
+                saveButton.textContent = originalText;
+                saveButton.disabled = false;
+                
+            } else {
+                // Standard batch save for non-Replit or single key
+                saveButton.textContent = 'Saving...';
+                
+                // Prepare batch save
+                keyList.forEach(k => keys[k.name] = k.value);
+                
+                try {
                     const response = await fetch('/api/config/keys', {
                         method: 'POST',
                         headers: { 
@@ -738,58 +800,33 @@
                             'Accept': 'application/json'
                         },
                         credentials: 'same-origin',
-                        body: JSON.stringify(keys),
-                        signal: controller.signal
+                        body: JSON.stringify(keys)
                     });
-                    
-                    clearTimeout(timeoutId);
-
-                    // Handle 502 with retry on Replit
-                    if (response.status === 502 && isReplit && attempts < maxAttempts) {
-                        console.log(`Attempt ${attempts} failed with 502, retrying...`);
-                        saveButton.textContent = `Retrying... (${attempts}/${maxAttempts})`;
-                        await new Promise(resolve => setTimeout(resolve, 2000));
-                        return attemptSave();
-                    }
 
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
 
-                    let data;
-                    try {
-                        data = await response.json();
-                    } catch (e) {
-                        // If JSON parsing fails, assume success
-                        console.log('JSON parse failed, but request may have succeeded');
-                        data = { success: true };
-                    }
+                    const data = await response.json();
                     
                     if (data.success) {
                         alert('API keys saved successfully!');
-                        // Reload the page to ensure fresh state
                         setTimeout(() => window.location.reload(), 1000);
+                    } else if (data.useIndividualSave) {
+                        // Server recommends individual save, retry with that method
+                        console.log('Server recommends individual save, retrying...');
+                        saveButton.textContent = originalText;
+                        saveButton.disabled = false;
+                        // Trigger individual save
+                        isReplit = true;
+                        return saveApiKeys();
                     } else {
-                        console.error('Server error:', data);
                         alert(`Error: ${data.error || 'Failed to save keys'}`);
                     }
                 } catch (error) {
-                    console.error(`Save error (attempt ${attempts}):`, error);
-                    
-                    if (error.name === 'AbortError' && isReplit && attempts < maxAttempts) {
-                        console.log('Request timed out, retrying...');
-                        saveButton.textContent = `Retrying... (${attempts}/${maxAttempts})`;
-                        await new Promise(resolve => setTimeout(resolve, 2000));
-                        return attemptSave();
-                    }
-                    
-                    // Final error handling
-                    if (error.name === 'AbortError') {
-                        alert('Request timed out. The server is taking too long to respond.\n\nOn Replit: The keys may have been saved. Please refresh the page to check.');
-                    } else if (error.message.includes('502')) {
-                        alert('Server error. The keys may have been saved.\n\nPlease refresh the page to check, or use the command line:\nnode setup-api-keys-v2.js');
-                    } else if (error.message.includes('Failed to fetch')) {
-                        alert('Cannot connect to server. Make sure the server is running.');
+                    console.error('Save error:', error);
+                    if (error.message.includes('502')) {
+                        alert('Server error. Please try again or use the command line:\nnode setup-api-keys-v2.js');
                     } else {
                         alert(`Error: ${error.message}`);
                     }
@@ -798,8 +835,6 @@
                     saveButton.disabled = false;
                 }
             }
-            
-            await attemptSave();
         }
 
         async function testApiKey(service) {

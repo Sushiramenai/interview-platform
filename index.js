@@ -253,6 +253,51 @@ app.get('/api/config/keys', AuthMiddleware.requireAdmin, async (req, res) => {
   }
 });
 
+// Check if specific keys are saved
+app.get('/api/config/keys/status', AuthMiddleware.requireAdmin, async (req, res) => {
+  try {
+    const keys = await configManager.getApiKeys();
+    const status = {
+      claude: !!keys.CLAUDE_API_KEY,
+      google: !!keys.GOOGLE_CREDENTIALS,
+      elevenlabs: !!keys.ELEVENLABS_API_KEY,
+      timestamp: new Date().toISOString()
+    };
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Save single API key endpoint for Replit
+app.post('/api/config/key', AuthMiddleware.requireAdmin, async (req, res) => {
+  try {
+    const { keyName, keyValue } = req.body;
+    
+    if (!keyName || !keyValue) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Key name and value required' 
+      });
+    }
+    
+    await configManager.initialize();
+    
+    const normalizedKeyName = keyName.toUpperCase().replace(/-/g, '_');
+    await configManager.setApiKey(normalizedKeyName, keyValue.trim());
+    
+    console.log(`✅ Saved: ${normalizedKeyName}`);
+    res.json({ success: true, saved: normalizedKeyName });
+  } catch (error) {
+    console.error('❌ Single key save error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// Original batch save endpoint (kept for compatibility)
 app.post('/api/config/keys', AuthMiddleware.requireAdmin, async (req, res) => {
   try {
     console.log('API Save Request:');
@@ -266,6 +311,15 @@ app.post('/api/config/keys', AuthMiddleware.requireAdmin, async (req, res) => {
       return res.status(400).json({ 
         success: false, 
         error: 'No keys provided' 
+      });
+    }
+    
+    // On Replit, recommend using individual saves
+    if (IS_REPLIT && Object.keys(keys).length > 1) {
+      return res.status(200).json({ 
+        success: false, 
+        useIndividualSave: true,
+        message: 'Please save keys individually on Replit' 
       });
     }
     
