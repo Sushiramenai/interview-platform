@@ -1,203 +1,168 @@
 # AI-Powered Video Interview Platform
 
 [![Run on Replit](https://replit.com/badge/github/Sushiramenai/interview-platform)](https://replit.com/new/github/Sushiramenai/interview-platform)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js CI](https://github.com/Sushiramenai/interview-platform/actions/workflows/test.yml/badge.svg)](https://github.com/Sushiramenai/interview-platform/actions/workflows/test.yml)
 
-An automated interview platform that uses Claude AI to conduct and evaluate video interviews via Google Meet.
+A fully automated interview platform where an AI bot joins Google Meet and conducts video interviews with voice synthesis. Perfect for HR teams with limited technical experience.
 
-## Features
+## 🌟 Key Features
 
-- **Automated Interviews**: Claude AI conducts professional interviews via Google Meet
-- **Role-Specific Questions**: Customizable question templates for different positions
-- **Smart Evaluation**: AI-powered analysis of candidate responses with scoring
-- **Video Recording**: Automatic recording and storage of interview sessions
-- **HR Dashboard**: Comprehensive admin panel for managing roles and reviewing candidates
-- **Customizable Content**: Editable welcome pages and interview introductions
+- **AI Bot Interviewer**: Self-hosted bot joins Google Meet and speaks questions
+- **Voice Synthesis**: Natural voice using ElevenLabs
+- **One-Click Setup**: Deploy on Replit in minutes
+- **HR-Friendly**: No technical knowledge required
+- **Cost-Effective**: ~$0.11 per interview (vs $1000s/month for alternatives)
+- **Multiple Modes**: AI bot, manual, or premium recording options
 
-## Quick Start
+## 🚀 Quick Start for HR Teams
 
-### Option 1: Deploy on Replit (Recommended)
-[![Run on Replit](https://replit.com/badge/github/Sushiramenai/interview-platform)](https://replit.com/new/github/Sushiramenai/interview-platform)
+### Deploy in 3 Minutes:
 
-1. Click the button above
-2. Configure secrets in Replit (see [REPLIT_SETUP.md](REPLIT_SETUP.md))
-3. Click Run!
+1. **Click Deploy Button**
+   [![Run on Replit](https://replit.com/badge/github/Sushiramenai/interview-platform)](https://replit.com/new/github/Sushiramenai/interview-platform)
 
-### Option 2: Local Development
-```bash
-git clone https://github.com/Sushiramenai/interview-platform.git
-cd interview-platform
-```
+2. **Sign up/Login to Replit**
+   - Use Google or email
+   - Free account works!
 
-2. Install dependencies:
-```bash
-npm install
-```
+3. **Click the Green "Run" Button**
+   - Wait 2-3 minutes for setup
+   - Your platform is ready!
 
-3. Set up environment variables:
-```bash
-cp .env.example .env
-# Edit .env with your API keys
-```
+### Access Your Platform:
+- **Admin Login**: `your-replit-url/login`
+  - Username: `Admin`
+  - Password: `admin123`
 
-4. Start the server:
-```bash
-npm start
-```
+### First-Time Setup (5 minutes):
+1. Login to admin panel
+2. Go to "API Configuration"
+3. Add 3 API keys (we'll show you how)
+4. Start interviewing!
 
-5. Access the platform:
-- Candidate portal: http://localhost:3000
-- Admin dashboard: http://localhost:3000/admin
+## 💰 Cost Comparison
 
-## Architecture
+| Service | Monthly Cost | Per Interview |
+|---------|-------------|---------------|
+| Recall.ai | $500-2000 | ~$10-20 |
+| HireVue | $1000+ | ~$15-25 |
+| **Our Platform** | **$0-7** | **~$0.11** |
 
-### Core Components
+### What You Pay:
+- **Hosting**: $0 (Replit free) or $7 (Replit Hacker)
+- **APIs**: ~$0.11 per interview
+- **Total**: Under $50/month for hundreds of interviews!
 
-- **Interview AI**: Conducts interviews using Claude API
-- **Evaluator**: Analyzes responses and generates scores
-- **Meet Generator**: Creates Google Meet sessions
-- **Drive Uploader**: Manages recording storage
-- **Admin Dashboard**: HR interface for management
+## 📋 Required API Keys (One-Time Setup)
 
-### Folder Structure
+### 1. Claude AI ($0)
+- Go to: https://console.anthropic.com/
+- Sign up → Create API key
+- Free tier available
 
-```
-/src
-  /ui         - Frontend HTML pages
-  /logic      - Core business logic
-  /roles      - Job role templates
-  /reports    - Interview evaluations
-  /utils      - Helper utilities
-/data         - Platform data storage
-```
+### 2. Google Service Account ($0)
+- See our [Google Setup Guide](VIDEO_INTERVIEW_FLOW.md#getting-google-api)
+- Enables Google Meet creation
 
-## Configuration
+### 3. ElevenLabs ($0)
+- Go to: https://elevenlabs.io/
+- Sign up → Get API key
+- Free tier = 10,000 characters/month
 
-### Required API Keys
+## 👥 How HR Uses It
 
-1. **Claude API Key**: For AI interviewer and evaluator
-2. **Google Cloud**: For Meet creation and Drive storage
-3. **ElevenLabs** (optional): For natural voice synthesis
+### Daily Workflow:
+1. **Create Role**
+   - Click "Role Templates"
+   - Add questions for the position
+   - Save
 
-### Google Cloud Setup
+2. **Share Link**
+   - Copy interview URL
+   - Send to candidates
 
-1. Create a service account with Calendar and Drive API access
-2. Download the service account key
-3. Set environment variables with credentials
+3. **Review Results**
+   - Check "Candidate Results"
+   - See scores and evaluations
 
-## Usage
+### What Candidates Experience:
+1. Click interview link
+2. Enter name/email
+3. Join Google Meet
+4. AI bot joins and asks questions
+5. Complete interview
+6. Done!
 
-### For HR/Admins
+## 🤖 How the AI Bot Works
 
-1. Access admin dashboard at `/admin`
-2. Create role templates with specific questions
-3. Customize the welcome page content
-4. Share interview links with candidates
-5. Review completed interviews and scores
+1. **Candidate joins Google Meet**
+2. **AI bot launches** (10 seconds later)
+3. **Bot introduces itself** with voice
+4. **Asks each question** using ElevenLabs
+5. **Waits for responses** (30-45 seconds)
+6. **Concludes interview** professionally
+7. **Auto-evaluates** and saves results
 
-### For Candidates
+## 🎯 3 Interview Modes
 
-1. Visit the shared interview link
-2. Read the "What to Expect" information
-3. Click "Start Interview" when ready
-4. Complete the AI-led interview
-5. Receive confirmation upon completion
+### 1. **Self-Hosted AI Bot** (Recommended)
+- Requirements: Claude + Google + ElevenLabs
+- AI bot joins Meet and speaks
+- No recording
+- Cost: ~$0.11/interview
 
-## Interview Flow
+### 2. **Manual Mode** (Fallback)
+- Requirements: Claude + Google only
+- Human conducts with interview guide
+- No bot needed
+- Cost: ~$0.01/interview
 
-1. **Initialization**: Candidate visits link and starts interview
-2. **Meet Creation**: System generates unique Google Meet room
-3. **AI Interview**: Claude asks role-specific questions
-4. **Recording**: Session is recorded for review
-5. **Evaluation**: AI analyzes responses and generates scores
-6. **Storage**: Recording uploaded to Google Drive
-7. **Review**: HR accesses evaluation and recording
+### 3. **Premium Mode** (Optional)
+- Requirements: All 4 services + Recall.ai
+- Full recording + transcription
+- Cost: Depends on Recall.ai pricing
 
-## Customization
+## ❓ Common HR Questions
 
-### Adding New Roles
+**Q: Do I need technical knowledge?**
+A: No! Everything is click-based. If you can use email, you can use this.
 
-Create a JSON file in `/src/roles/`:
+**Q: What if the bot doesn't work?**
+A: System auto-switches to manual mode with interview guide.
 
-```json
-{
-  "role": "Role Name",
-  "traits": ["trait1", "trait2"],
-  "questions": ["Question 1", "Question 2"],
-  "behavioral_questions": ["Behavioral 1", "Behavioral 2"]
-}
-```
+**Q: Is it really that cheap?**
+A: Yes! You only pay for API usage, about 11 cents per interview.
 
-### Modifying Welcome Content
+**Q: Can we customize questions?**
+A: Yes! Unlimited roles and questions through the dashboard.
 
-Edit via admin dashboard or update `/data/settings.json`:
+**Q: Is it secure?**
+A: Yes! Each interview has unique links, one-time use only.
 
-```json
-{
-  "intro_content": "# Your Markdown Content"
-}
-```
+## 📚 Documentation
 
-## Development
+- **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Step-by-step Replit setup
+- **[AI Bot System](AI_BOT_SYSTEM.md)** - How the bot works
+- **[Google Setup](VIDEO_INTERVIEW_FLOW.md)** - Getting Google credentials
+- **[Integration Status](INTEGRATION_STATUS.md)** - Current features
 
-### Running in Development Mode
+## 🆘 Need Help?
 
-```bash
-npm run dev
-```
+### Quick Fixes:
+- **Can't login?** Check caps lock (Username: Admin)
+- **Bot not joining?** Upgrade to Replit Hacker plan
+- **API errors?** Double-check your keys in settings
 
-### API Endpoints
+### Support:
+- Create an [Issue](https://github.com/Sushiramenai/interview-platform/issues)
+- Check [Deployment Guide](DEPLOYMENT_GUIDE.md)
+- Review [Documentation](#-documentation)
 
-- `GET /api/settings` - Get platform settings
-- `POST /api/settings` - Update settings
-- `GET /api/roles` - List all role templates
-- `POST /api/roles` - Create/update role
-- `GET /api/interviews` - List interviews
-- `POST /api/meet/create` - Create Meet room
-- `POST /api/interview/start` - Start AI interview
-- `POST /api/interview/evaluate` - Trigger evaluation
+## 🎉 Ready to Start?
 
-## Deployment
+1. Click the Replit button at the top
+2. Follow our [5-minute setup](DEPLOYMENT_GUIDE.md)
+3. Start interviewing today!
 
-### Deploying to Replit
+---
 
-1. Import this repository to Replit
-2. Set environment variables in Replit Secrets
-3. Run the repl
-4. Use the generated URL for production
-
-### Security Considerations
-
-- Implement authentication for admin dashboard
-- Use HTTPS in production
-- Secure API keys properly
-- Add rate limiting
-- Implement user consent for recording
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Meet creation fails**: Check Google API credentials
-2. **Recording not saving**: Verify Drive permissions
-3. **AI not responding**: Confirm Claude API key is valid
-4. **Page not loading**: Check if all dependencies are installed
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## License
-
-MIT License - see LICENSE file for details
-
-## Support
-
-For issues or questions:
-- Open a GitHub issue
-- Contact support@yourcompany.com
+**Built to make hiring affordable and accessible for everyone!** 🚀
