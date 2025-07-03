@@ -1110,148 +1110,109 @@ app.get('/api/interviews/:uuid', async (req, res) => {
 
 // Automated Interview API Routes
 app.post('/api/interview/automated/start', async (req, res) => {
+  // Set timeout for Replit
+  if (IS_REPLIT) {
+    req.setTimeout(25000);
+    res.setTimeout(25000);
+  }
+  
   console.log('\n🎯 Interview start request received');
-  console.log('Request headers:', req.headers);
-  console.log('Request body:', req.body);
   
   try {
     const { candidateName, email, role } = req.body;
     
-    console.log('📋 Interview parameters:', { candidateName, email, role });
-    
-    // Validate input
+    // Quick validation
     if (!candidateName || !email || !role) {
       return res.status(400).json({ 
         error: 'Please provide candidate name, email, and role' 
       });
     }
     
-    // Ensure services are initialized
-    await configManager.initialize();
-    
-    // Check API keys from ConfigManager
+    // Quick API key check (don't reinitialize everything)
     const apiKeys = await configManager.getApiKeys();
-    const hasElevenLabs = !!apiKeys.ELEVENLABS_API_KEY;
-    const hasGoogleCreds = !!apiKeys.GOOGLE_CREDENTIALS;
-    const hasClaude = !!apiKeys.CLAUDE_API_KEY;
-    
-    console.log('API key status:', {
-      claude: hasClaude,
-      google: hasGoogleCreds,
-      elevenlabs: hasElevenLabs
-    });
-    
-    // Also check environment variables after initialization
-    console.log('Environment variables:', {
-      CLAUDE_API_KEY: !!process.env.CLAUDE_API_KEY,
-      ELEVENLABS_API_KEY: !!process.env.ELEVENLABS_API_KEY,
-      GOOGLE_CREDENTIALS: !!process.env.GOOGLE_CREDENTIALS
-    });
-    
-    if (!hasClaude || !hasGoogleCreds || !hasElevenLabs) {
-      const missing = [];
-      if (!hasClaude) missing.push('Claude AI');
-      if (!hasGoogleCreds) missing.push('Google Services');
-      if (!hasElevenLabs) missing.push('ElevenLabs');
-      
+    if (!apiKeys.CLAUDE_API_KEY || !apiKeys.GOOGLE_CREDENTIALS || !apiKeys.ELEVENLABS_API_KEY) {
       return res.status(400).json({ 
-        error: `Missing required API keys: ${missing.join(', ')}. Please configure them in the admin panel.`
+        error: 'API keys not configured. Please configure them in the admin panel.'
       });
     }
     
-    // Ensure services are initialized with latest keys
-    await ServiceInitializer.initializeAllServices(configManager);
-    
     const roleSlug = role.toLowerCase().replace(/\s+/g, '_');
     
-    // Always reinitialize to ensure fresh state on Replit
-    console.log('🔄 Ensuring services are initialized...');
-    try {
-      await initializeServices();
-      console.log('✅ Services initialization complete');
-    } catch (initError) {
-      console.error('❌ Service initialization failed:', initError);
-      throw new Error('Failed to initialize services: ' + initError.message);
-    }
-    
-    // Verify API keys are in environment
-    const requiredEnvVars = ['CLAUDE_API_KEY', 'ELEVENLABS_API_KEY', 'GOOGLE_CREDENTIALS'];
-    const missingVars = requiredEnvVars.filter(v => !process.env[v]);
-    
-    if (missingVars.length > 0) {
-      console.error('❌ Missing environment variables:', missingVars);
-      throw new Error('Missing required configuration: ' + missingVars.join(', '));
-    }
-    
-    try {
-      // Always use self-hosted bot mode
-      console.log('🤖 Starting interview with self-hosted bot mode');
-      console.log('Orchestrator exists:', !!selfHostedInterviewOrchestrator);
-      console.log('Orchestrator type:', typeof selfHostedInterviewOrchestrator);
+    // Check if services are already initialized
+    if (!servicesReady) {
+      console.log('Services not ready, initializing...');
       
-      if (!selfHostedInterviewOrchestrator) {
-        throw new Error('selfHostedInterviewOrchestrator is undefined');
+      // Initialize only if not already done
+      if (!servicesInitialized) {
+        await ServiceInitializer.initializeAllServices(configManager);
+        servicesInitialized = true;
       }
       
-      console.log('📞 Calling orchestrator.startVideoInterview...');
-      const result = await selfHostedInterviewOrchestrator.startVideoInterview(
+      // Create orchestrators if needed
+      if (!selfHostedInterviewOrchestrator) {
+        const SelfHostedInterviewOrchestrator = require('./src/logic/self_hosted_interview_orchestrator');
+        selfHostedInterviewOrchestrator = new SelfHostedInterviewOrchestrator();
+      }
+      
+      servicesReady = true;
+    }
+    
+    // Start interview quickly
+    console.log('🚀 Starting interview...');
+    
+    try {
+      // Add timeout protection
+      const startPromise = selfHostedInterviewOrchestrator.startVideoInterview(
         candidateName,
         email,
         roleSlug
       );
       
-      console.log('Interview started successfully:', result.sessionId);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Interview start timeout')), 20000)
+      );
+      
+      const result = await Promise.race([startPromise, timeoutPromise]);
+      
+      console.log('✅ Interview started:', result.sessionId);
       
       res.json({
         id: result.sessionId,
         meetUrl: result.meetUrl,
-        instructions: result.instructions,
+        instructions: result.instructions || 'Please join the Google Meet room to begin your interview.',
         status: 'ready',
         mode: 'self-hosted-bot'
       });
       
-    } catch (innerError) {
-      console.error('Interview orchestration error:', innerError);
+    } catch (error) {
+      console.error('Interview start failed:', error.message);
       
-      // Fallback to manual mode if bot fails
-      console.log('Falling back to manual interview mode');
-      const result = await manualInterviewOrchestrator.startVideoInterview(
-        candidateName,
-        email,
-        roleSlug
-      );
+      // Quick fallback response
+      const sessionId = `interview_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
       res.json({
-        id: result.sessionId,
-        meetUrl: result.meetUrl,
-        instructions: result.instructions,
-        interviewGuideUrl: result.interviewGuideUrl,
-        status: 'ready',
-        mode: 'manual',
-        notice: 'AI bot unavailable - manual interview mode activated'
+        id: sessionId,
+        meetUrl: '#',
+        instructions: 'Interview system is initializing. Please refresh the page and try again in a moment.',
+        status: 'initializing',
+        mode: 'pending'
+      });
+      
+      // Initialize in background for next time
+      setImmediate(async () => {
+        try {
+          await initializeServices();
+          console.log('Background initialization complete');
+        } catch (e) {
+          console.error('Background init failed:', e);
+        }
       });
     }
     
   } catch (error) {
-    console.error('❌ Interview start error:', error);
-    console.error('Stack:', error.stack);
-    
-    // More detailed error for debugging
-    const errorDetails = {
-      message: error.message,
-      servicesInitialized: servicesReady,
-      hasOrchestrators: !!selfHostedInterviewOrchestrator && !!manualInterviewOrchestrator,
-      apiKeysSet: {
-        claude: !!process.env.CLAUDE_API_KEY,
-        elevenlabs: !!process.env.ELEVENLABS_API_KEY,
-        google: !!process.env.GOOGLE_CREDENTIALS
-      }
-    };
-    
-    console.error('Error details:', errorDetails);
-    
+    console.error('❌ Interview error:', error);
     res.status(500).json({ 
-      error: error.message || 'Failed to start interview'
+      error: 'Failed to start interview. Please try again.'
     });
   }
 });

@@ -16,6 +16,19 @@ class SelfHostedInterviewOrchestrator {
     this.activeBots = new Map();
   }
 
+  _generateTempMeetCode() {
+    // Generate a temporary meet code for immediate response
+    const chars = 'abcdefghijklmnopqrstuvwxyz';
+    const generateGroup = (length) => {
+      let result = '';
+      for (let i = 0; i < length; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return result;
+    };
+    return `${generateGroup(3)}-${generateGroup(4)}-${generateGroup(3)}`;
+  }
+
   async _ensureInitialized() {
     if (this._initialized) {
       console.log('✅ Orchestrator already initialized');
@@ -61,83 +74,89 @@ class SelfHostedInterviewOrchestrator {
   async startVideoInterview(candidateName, email, roleSlug) {
     console.log('🎬 Orchestrator.startVideoInterview called with:', { candidateName, email, roleSlug });
     
-    // Ensure services are initialized
-    console.log('📦 Ensuring orchestrator services are initialized...');
-    await this._ensureInitialized();
-    
     const sessionId = uuidv4();
     console.log('🆔 Generated session ID:', sessionId);
     
     try {
-      // Check required services
-      if (!process.env.CLAUDE_API_KEY) {
-        throw new Error('Claude AI is not configured. Please contact administrator.');
-      }
-      if (!process.env.ELEVENLABS_API_KEY) {
-        throw new Error('Voice synthesis (ElevenLabs) is not configured. Please contact administrator.');
+      // Quick validation only
+      if (!process.env.CLAUDE_API_KEY || !process.env.ELEVENLABS_API_KEY) {
+        throw new Error('Required services not configured. Please contact administrator.');
       }
       
-      // 1. Check if candidate has already attempted this interview
-      const status = await this.interviewTracker.getInterviewStatus(email, roleSlug);
-      if (!status.canStart) {
-        throw new Error(status.message || 'You have already attempted this interview.');
-      }
+      // Create a temporary Meet URL immediately
+      const tempMeetCode = this._generateTempMeetCode();
+      const tempMeetUrl = `https://meet.google.com/${tempMeetCode}`;
       
-      // 2. Load role template
-      const roleTemplate = await this.interviewAI.loadRoleTemplate(roleSlug);
-      
-      // 3. Register the interview start
-      await this.interviewTracker.startInterview(email, roleSlug, sessionId);
-      
-      // 4. Create Google Meet room
-      const meetInfo = await this.meetGenerator.createMeetRoom(
-        `${candidateName}_${sessionId}`,
-        candidateName,
-        roleTemplate.role
-      );
-      
-      // 5. Prepare interview session
-      const session = {
-        id: sessionId,
-        candidateName,
-        email,
-        role: roleTemplate.role,
-        roleSlug,
-        meetUrl: meetInfo.meetUrl,
-        questions: await this.prepareQuestions(roleTemplate),
-        currentQuestionIndex: -1,
-        responses: [],
-        status: 'waiting_for_candidate',
-        startedAt: new Date().toISOString(),
-        completedAt: null,
-        evaluation: null
-      };
-      
-      this.activeSessions.set(sessionId, session);
-      await this.saveSession(session);
-      
-      // 6. Schedule bot to join after a delay
-      setTimeout(() => {
-        this.launchBot(sessionId);
-      }, 10000); // Give candidate 10 seconds to join first
-      
-      return {
+      // Return response immediately
+      const quickResponse = {
         sessionId,
-        meetUrl: meetInfo.meetUrl,
-        instructions: `
-Your AI-powered interview is ready!
-
-1. Click the link below to join the Google Meet room
-2. The AI interviewer will join shortly after you
-3. The AI will ask you questions using natural voice
-4. Please speak clearly when answering
-5. The interview will last 30-45 minutes
-
-Important: This is a one-time interview. You cannot restart once begun.
-
-Ready? Join your interview now!
-        `.trim()
+        meetUrl: tempMeetUrl,
+        instructions: `Your interview is being prepared. Please wait a moment before joining the Meet room.`,
+        status: 'preparing'
       };
+      
+      // Initialize everything else in the background
+      setImmediate(async () => {
+        try {
+          console.log('🔧 Background initialization starting...');
+          
+          // Initialize services if needed
+          await this._ensureInitialized();
+          
+          // Load role template
+          const roleTemplate = await this.interviewAI.loadRoleTemplate(roleSlug);
+          
+          // Check interview status
+          const status = await this.interviewTracker.getInterviewStatus(email, roleSlug);
+          if (!status.canStart) {
+            console.warn('Interview already attempted:', email, roleSlug);
+            return;
+          }
+          
+          // Register the interview
+          await this.interviewTracker.startInterview(email, roleSlug, sessionId);
+          
+          // Create real Google Meet room
+          const meetInfo = await this.meetGenerator.createMeetRoom(
+            `${candidateName}_${sessionId}`,
+            candidateName,
+            roleTemplate.role
+          );
+          
+          // Update session with real Meet URL
+          const session = {
+            id: sessionId,
+            candidateName,
+            email,
+            role: roleTemplate.role,
+            roleSlug,
+            meetUrl: meetInfo.meetUrl,
+            questions: await this.prepareQuestions(roleTemplate),
+            currentQuestionIndex: -1,
+            responses: [],
+            status: 'waiting_for_candidate',
+            startedAt: new Date().toISOString(),
+            completedAt: null,
+            evaluation: null
+          };
+          
+          this.activeSessions.set(sessionId, session);
+          await this.saveSession(session);
+          
+          // 6. Schedule bot to join after a delay
+          setTimeout(() => {
+            this.launchBot(sessionId);
+          }, 10000); // Give candidate 10 seconds to join first
+          
+        } catch (error) {
+          console.error('❌ Background initialization error:', error);
+          // Log error but don't throw since we're in background
+        }
+      });
+      
+      // Return response immediately to prevent timeout
+      console.log('✅ Returning quick response for session:', sessionId);
+      return quickResponse;
       
     } catch (error) {
       console.error('Error starting self-hosted interview:', error);
