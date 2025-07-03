@@ -400,6 +400,68 @@ app.get('/api/config/keys/status', AuthMiddleware.requireAdmin, async (req, res)
   }
 });
 
+// Direct save endpoint for individual API keys - minimal processing
+app.post('/api/config/key-direct', AuthMiddleware.requireAdmin, async (req, res) => {
+  console.log('Direct API key save');
+  
+  try {
+    const { keyName, keyValue } = req.body;
+    
+    if (!keyName || !keyValue) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Key name and value required' 
+      });
+    }
+    
+    console.log(`Direct saving ${keyName}`);
+    
+    // Direct save to file without complex processing
+    const fs = require('fs').promises;
+    const path = require('path');
+    const configPath = path.join(__dirname, 'data/config.json');
+    
+    // Read existing config
+    const configContent = await fs.readFile(configPath, 'utf8');
+    const config = JSON.parse(configContent);
+    
+    // Save key as plain text temporarily
+    if (!config.apiKeys) {
+      config.apiKeys = {};
+    }
+    config.apiKeys[`${keyName}_TEMP`] = keyValue;
+    
+    // Write back immediately
+    await fs.writeFile(configPath, JSON.stringify(config, null, 2));
+    
+    // Process properly in background
+    setImmediate(async () => {
+      try {
+        console.log(`Background processing ${keyName}...`);
+        await configManager.setApiKey(keyName, keyValue);
+        
+        // Remove temp key
+        const updatedConfig = await configManager.getConfig();
+        delete updatedConfig.apiKeys[`${keyName}_TEMP`];
+        await configManager.saveConfig(updatedConfig);
+        
+        console.log(`✅ ${keyName} fully processed`);
+      } catch (e) {
+        console.error('Background processing failed:', e);
+      }
+    });
+    
+    res.json({ success: true });
+    
+  } catch (error) {
+    console.error('Direct save error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Save failed' 
+    });
+  }
+});
+
 // Direct save endpoint for Google credentials - minimal processing
 app.post('/api/config/google-direct', AuthMiddleware.requireAdmin, async (req, res) => {
   console.log('Direct Google credentials save');

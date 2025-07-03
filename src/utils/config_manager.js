@@ -130,10 +130,11 @@ class ConfigManager {
         const decryptedKeys = {};
         
         for (const [key, value] of Object.entries(config.apiKeys || {})) {
-            // Handle temporary Google credentials
-            if (key === 'GOOGLE_CREDENTIALS_TEMP' && value) {
+            // Handle temporary keys
+            if (key.endsWith('_TEMP') && value) {
                 // Map temp key to actual key name
-                decryptedKeys['GOOGLE_CREDENTIALS'] = value;
+                const actualKey = key.replace('_TEMP', '');
+                decryptedKeys[actualKey] = value;
             } else if (value && value.startsWith('plain:')) {
                 // Handle plain text keys (temporary, before encryption)
                 decryptedKeys[key] = value.substring(6);
