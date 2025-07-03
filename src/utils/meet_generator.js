@@ -1,11 +1,9 @@
 const GoogleMeetService = require('./google_meet_service');
-const RecallRecordingService = require('./recall_recording_service');
 const { v4: uuidv4 } = require('uuid');
 
 class MeetGenerator {
     constructor() {
         this.googleMeetService = new GoogleMeetService();
-        this.recallService = new RecallRecordingService();
         this.baseUrl = 'https://meet.google.com/';
     }
 
@@ -18,15 +16,7 @@ class MeetGenerator {
                 60 // 60 minute duration
             );
 
-            // Start recording bot if enabled
-            let recordingBot = null;
-            if (process.env.ENABLE_RECORDING === 'true') {
-                recordingBot = await this.recallService.createBot(
-                    meetData.meetUrl,
-                    sessionId,
-                    { candidateName, role }
-                );
-            }
+            // Recording functionality removed with Recall.ai
 
             const meetInfo = {
                 sessionId,
@@ -38,8 +28,8 @@ class MeetGenerator {
                 createdAt: new Date().toISOString(),
                 startTime: meetData.startTime,
                 endTime: meetData.endTime,
-                recordingBotId: recordingBot?.botId || null,
-                recordingStatus: recordingBot ? 'pending' : 'disabled'
+                recordingBotId: null,
+                recordingStatus: 'disabled'
             };
 
             console.log('Meet room created with recording:', meetInfo);
