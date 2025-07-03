@@ -13,6 +13,7 @@ const AuthMiddleware = require('./src/middleware/auth');
 const ConfigManager = require('./src/utils/config_manager');
 const ServiceInitializer = require('./src/utils/service_initializer');
 const AutomatedInterviewSystem = require('./src/logic/automated_interview_system');
+const VideoInterviewOrchestrator = require('./src/logic/video_interview_orchestrator');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -21,7 +22,7 @@ const PORT = process.env.PORT || 3000;
 const configManager = new ConfigManager();
 
 // Initialize services after config
-let interviewAI, evaluator, meetGenerator, driveUploader, automatedInterviewSystem;
+let interviewAI, evaluator, meetGenerator, driveUploader, automatedInterviewSystem, videoInterviewOrchestrator;
 
 async function initializeServices() {
   await configManager.initialize();
@@ -32,6 +33,7 @@ async function initializeServices() {
   meetGenerator = new MeetGenerator();
   driveUploader = new DriveUploader();
   automatedInterviewSystem = new AutomatedInterviewSystem();
+  videoInterviewOrchestrator = new VideoInterviewOrchestrator();
 }
 
 // Initialize admin user
@@ -72,13 +74,8 @@ app.get('/setup', async (req, res) => {
 });
 
 app.get('/interview', (req, res) => {
-  // Check if it's an automated interview session
-  const sessionId = req.query.session;
-  if (sessionId) {
-    res.sendFile(path.join(__dirname, 'src/ui/automated_interview.html'));
-  } else {
-    res.sendFile(path.join(__dirname, 'src/ui/interview.html'));
-  }
+  // Redirect to landing page - we don't use text-based interviews anymore
+  res.redirect('/candidate');
 });
 
 app.get('/candidate', (req, res) => {
@@ -408,29 +405,40 @@ app.get('/api/interviews/:uuid', async (req, res) => {
 });
 
 // Automated Interview API Routes
+app.get('/api/interview/check-status', async (req, res) => {
+  try {
+    const { email, role } = req.query;
+    
+    if (!email || !role) {
+      return res.status(400).json({ error: 'Email and role are required' });
+    }
+    
+    const interviewTracker = videoInterviewOrchestrator.interviewTracker;
+    const status = await interviewTracker.getInterviewStatus(email, role);
+    
+    res.json(status);
+  } catch (error) {
+    console.error('Error checking interview status:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/api/interview/automated/start', async (req, res) => {
   try {
     const { candidateName, email, role } = req.body;
     
-    // Create Google Meet room
-    const meetInfo = await meetGenerator.createMeetRoom(
-      candidateName + '_' + Date.now(),
-      candidateName,
-      role
-    );
-    
-    // Start automated interview session
-    const session = await automatedInterviewSystem.startInterview(
+    // Use video interview orchestrator for real Google Meet interviews
+    const result = await videoInterviewOrchestrator.startVideoInterview(
       candidateName,
       email,
-      role,
-      meetInfo.meetUrl
+      role.toLowerCase().replace(/\s+/g, '_')
     );
     
     res.json({
-      id: session.id,
-      meetUrl: meetInfo.meetUrl,
-      status: session.status
+      id: result.sessionId,
+      meetUrl: result.meetUrl,
+      instructions: result.instructions,
+      status: 'ready'
     });
   } catch (error) {
     console.error('Error starting automated interview:', error);

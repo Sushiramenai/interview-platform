@@ -387,17 +387,20 @@
                     return;
                 }
                 
-                container.innerHTML = roles.map(role => `
+                container.innerHTML = roles.map((role, index) => `
                     <div style="background: #f8f9fa; padding: 20px; margin-bottom: 20px; border-radius: 8px;">
                         <h3>${role.role}</h3>
                         <p><strong>Description:</strong> ${role.job_description || 'No description provided'}</p>
                         <p><strong>Traits:</strong> ${role.traits.join(', ')}</p>
                         <p><strong>Questions:</strong> ${role.questions.length} interview + ${role.behavioral_questions.length} behavioral</p>
                         <p><strong>Interview URL:</strong> <code>${window.location.origin}/candidate?role=${encodeURIComponent(role.role.toLowerCase().replace(/\s+/g, '_'))}</code></p>
-                        <button class="btn" onclick='editRole(${JSON.stringify(role).replace(/'/g, "&apos;")})'>Edit</button>
+                        <button class="btn" onclick="editRoleByIndex(${index})">Edit</button>
                         <button class="btn btn-danger" onclick="deleteRole('${role.role}')">Delete</button>
                     </div>
                 `).join('');
+                
+                // Store roles globally for access by index
+                window.currentRoles = roles;
                 
                 // Update role filter in results
                 updateRoleFilter(roles);
@@ -452,6 +455,14 @@
             addBehavioralQuestion();
         }
 
+        function editRoleByIndex(index) {
+            if (!window.currentRoles || !window.currentRoles[index]) {
+                alert('Role not found. Please refresh and try again.');
+                return;
+            }
+            editRole(window.currentRoles[index]);
+        }
+
         function editRole(role) {
             document.getElementById('role-form').style.display = 'block';
             document.getElementById('role-name').value = role.role;
@@ -466,8 +477,8 @@
                 const div = document.createElement('div');
                 div.className = 'form-group';
                 div.innerHTML = `
-                    <input type="text" class="question-input" value="${q}" placeholder="Enter interview question">
-                    <button class="btn btn-danger" onclick="this.parentElement.remove()">Remove</button>
+                    <input type="text" class="question-input" value="${q.replace(/"/g, '&quot;')}" placeholder="Enter interview question" style="width: calc(100% - 100px);">
+                    <button class="btn btn-danger" onclick="this.parentElement.remove()" style="width: 80px; margin-left: 10px;">Remove</button>
                 `;
                 container.appendChild(div);
             });
@@ -479,8 +490,8 @@
                 const div = document.createElement('div');
                 div.className = 'form-group';
                 div.innerHTML = `
-                    <input type="text" class="behavioral-input" value="${q}" placeholder="Enter behavioral question">
-                    <button class="btn btn-danger" onclick="this.parentElement.remove()">Remove</button>
+                    <input type="text" class="behavioral-input" value="${q.replace(/"/g, '&quot;')}" placeholder="Enter behavioral question" style="width: calc(100% - 100px);">
+                    <button class="btn btn-danger" onclick="this.parentElement.remove()" style="width: 80px; margin-left: 10px;">Remove</button>
                 `;
                 container.appendChild(div);
             });

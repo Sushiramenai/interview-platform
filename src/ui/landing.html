@@ -90,6 +90,30 @@
             const candidateEmail = prompt('Please enter your email address:');
             if (!candidateEmail) return;
             
+            // Check if candidate has already attempted this interview
+            try {
+                const statusResponse = await fetch(`/api/interview/check-status?email=${encodeURIComponent(candidateEmail)}&role=${encodeURIComponent(role)}`);
+                const status = await statusResponse.json();
+                
+                if (!status.canStart) {
+                    alert(status.message || 'You have already attempted this interview. Multiple attempts are not allowed.');
+                    
+                    // Show status information
+                    document.querySelector('.container').innerHTML = `
+                        <h1>Interview Status</h1>
+                        <div class="info-box" style="border-color: #dc3545;">
+                            <h3>Interview Already Attempted</h3>
+                            <p>${status.message}</p>
+                            ${status.completedAt ? `<p>Completed on: ${new Date(status.completedAt).toLocaleString()}</p>` : ''}
+                            ${status.score ? `<p>Score: ${status.score}/10</p>` : ''}
+                        </div>
+                    `;
+                    return;
+                }
+            } catch (error) {
+                console.error('Error checking interview status:', error);
+            }
+            
             // Start automated interview
             try {
                 const response = await fetch('/api/interview/automated/start', {
@@ -104,7 +128,29 @@
                 
                 if (response.ok) {
                     const session = await response.json();
-                    window.location.href = `/interview?session=${session.id}`;
+                    
+                    // Show instructions and redirect to Google Meet
+                    alert(session.instructions || 'Your interview is ready! You will now be redirected to the Google Meet room.');
+                    
+                    // Open Google Meet in new tab/window
+                    window.open(session.meetUrl, '_blank');
+                    
+                    // Show completion message
+                    document.querySelector('.container').innerHTML = `
+                        <h1>Interview Started</h1>
+                        <div class="info-box">
+                            <p>Your Google Meet interview has been opened in a new window/tab.</p>
+                            <p>If the window didn't open, <a href="${session.meetUrl}" target="_blank">click here to join the meeting</a>.</p>
+                            <br>
+                            <h3>Important Notes:</h3>
+                            <ul>
+                                <li>The AI interviewer will join the meeting shortly</li>
+                                <li>Please ensure your camera and microphone are enabled</li>
+                                <li>The interview will be recorded for evaluation</li>
+                                <li>Once you start, you cannot redo the interview</li>
+                            </ul>
+                        </div>
+                    `;
                 } else {
                     alert('Failed to start interview. Please try again.');
                 }

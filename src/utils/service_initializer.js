@@ -53,6 +53,9 @@ class ServiceInitializer {
         }
         if (apiKeys.RECALL_API_KEY) {
             process.env.ENABLE_RECORDING = 'true';
+            // Set webhook URL for Recall.ai
+            const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
+            process.env.RECALL_WEBHOOK_URL = `${baseUrl}/api/webhooks/recall`;
         }
     }
 }
