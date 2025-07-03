@@ -151,6 +151,16 @@ app.post('/api/config/test', async (req, res) => {
   }
 });
 
+app.get('/api/config/status', async (req, res) => {
+  try {
+    const SystemCheck = require('./src/utils/system_check');
+    const status = await SystemCheck.checkAllServices();
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/api/config/complete-setup', async (req, res) => {
   try {
     const config = req.body;

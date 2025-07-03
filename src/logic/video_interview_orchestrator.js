@@ -25,6 +25,17 @@ class VideoInterviewOrchestrator {
     const sessionId = uuidv4();
     
     try {
+      // Check required services are configured
+      if (!process.env.CLAUDE_API_KEY) {
+        throw new Error('Claude AI is not configured. Please contact administrator.');
+      }
+      if (!process.env.ELEVENLABS_API_KEY) {
+        throw new Error('Voice synthesis (ElevenLabs) is not configured. Please contact administrator.');
+      }
+      if (!process.env.RECALL_API_KEY) {
+        throw new Error('Video recording (Recall.ai) is not configured. Please contact administrator.');
+      }
+      
       // 1. Check if candidate has already attempted this interview
       const status = await this.interviewTracker.getInterviewStatus(email, roleSlug);
       if (!status.canStart) {

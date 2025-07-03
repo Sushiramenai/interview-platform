@@ -171,7 +171,7 @@
             <div id="interviews" class="section">
                 <h2>Recent Interviews</h2>
                 <div id="api-warning" style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; margin-bottom: 20px; border-radius: 6px; display: none;">
-                    <strong>⚠️ Setup Required:</strong> Please configure your API keys in the <a href="#" onclick="showSection('api-config'); return false;">API Configuration</a> section to enable interviews.
+                    <strong>⚠️ Setup Required:</strong> Please configure ALL required API keys (Claude, Google, ElevenLabs, Recall.ai) in the <a href="#" onclick="showSection('api-config'); return false;">API Configuration</a> section to enable video interviews.
                 </div>
                 <table id="interviews-table">
                     <thead>
@@ -253,7 +253,12 @@
             <!-- API Configuration Section -->
             <div id="api-config" class="section">
                 <h2>API Configuration</h2>
-                <p>Manage your service integrations and API keys.</p>
+                <p>All services are required for the video interview system to function.</p>
+                
+                <div id="system-status" style="background: #f0f0f0; padding: 20px; margin-bottom: 30px; border-radius: 8px;">
+                    <h3>System Status</h3>
+                    <div id="status-indicators">Checking services...</div>
+                </div>
                 
                 <div style="background: #f8f9fa; padding: 20px; margin-bottom: 30px; border-radius: 8px;">
                     <h3>Claude AI</h3>
@@ -276,21 +281,21 @@
                 </div>
                 
                 <div style="background: #f8f9fa; padding: 20px; margin-bottom: 30px; border-radius: 8px;">
-                    <h3>ElevenLabs (Optional)</h3>
-                    <p>Natural voice synthesis</p>
+                    <h3>ElevenLabs <span style="color: #dc3545;">(Required)</span></h3>
+                    <p>AI voice synthesis for interview questions</p>
                     <div class="form-group">
-                        <label>API Key</label>
-                        <input type="password" id="elevenlabs-key" placeholder="Your API key" style="width: calc(100% - 120px);">
+                        <label>API Key <span style="color: #dc3545;">*</span></label>
+                        <input type="password" id="elevenlabs-key" placeholder="Your API key" style="width: calc(100% - 120px);" required>
                         <button class="btn" onclick="testApiKey('elevenlabs')" style="width: 100px; margin-left: 10px;">Test</button>
                     </div>
                 </div>
                 
                 <div style="background: #f8f9fa; padding: 20px; margin-bottom: 30px; border-radius: 8px;">
-                    <h3>Recall.ai (Optional)</h3>
-                    <p>Automatic recording service</p>
+                    <h3>Recall.ai <span style="color: #dc3545;">(Required)</span></h3>
+                    <p>Video recording and AI bot for Google Meet</p>
                     <div class="form-group">
-                        <label>API Key</label>
-                        <input type="password" id="recall-key" placeholder="Your API key" style="width: calc(100% - 120px);">
+                        <label>API Key <span style="color: #dc3545;">*</span></label>
+                        <input type="password" id="recall-key" placeholder="Your API key" style="width: calc(100% - 120px);" required>
                         <button class="btn" onclick="testApiKey('recall')" style="width: 100px; margin-left: 10px;">Test</button>
                     </div>
                 </div>
@@ -301,6 +306,8 @@
     </div>
 
     <script>
+        // Define all functions first
+
         // Check authentication on load
         async function checkAuth() {
             try {
@@ -581,6 +588,9 @@
                 const keys = await response.json();
                 
                 let hasClaudeKey = false;
+                let hasGoogleCreds = false;
+                let hasElevenLabsKey = false;
+                let hasRecallKey = false;
                 
                 if (keys.CLAUDE_API_KEY) {
                     document.getElementById('claude-key').value = '••••••••' + keys.CLAUDE_API_KEY.substr(-4);
@@ -588,18 +598,25 @@
                 }
                 if (keys.GOOGLE_CREDENTIALS) {
                     document.getElementById('google-creds').value = '{ ... }';
+                    hasGoogleCreds = true;
                 }
                 if (keys.ELEVENLABS_API_KEY) {
                     document.getElementById('elevenlabs-key').value = '••••••••' + keys.ELEVENLABS_API_KEY.substr(-4);
+                    hasElevenLabsKey = true;
                 }
                 if (keys.RECALL_API_KEY) {
                     document.getElementById('recall-key').value = '••••••••' + keys.RECALL_API_KEY.substr(-4);
+                    hasRecallKey = true;
                 }
                 
-                // Show warning if Claude API key is not configured
+                // Update system status
+                updateSystemStatus(hasClaudeKey, hasGoogleCreds, hasElevenLabsKey, hasRecallKey);
+                
+                // Show warning if any required key is not configured
                 const warning = document.getElementById('api-warning');
                 if (warning) {
-                    warning.style.display = hasClaudeKey ? 'none' : 'block';
+                    const allConfigured = hasClaudeKey && hasGoogleCreds && hasElevenLabsKey && hasRecallKey;
+                    warning.style.display = allConfigured ? 'none' : 'block';
                 }
             } catch (error) {
                 console.error('Error loading API keys:', error);
@@ -608,7 +625,35 @@
                 if (warning) {
                     warning.style.display = 'block';
                 }
+                updateSystemStatus(false, false, false, false);
             }
+        }
+        
+        function updateSystemStatus(claude, google, elevenlabs, recall) {
+            const statusDiv = document.getElementById('status-indicators');
+            if (!statusDiv) return;
+            
+            const allConfigured = claude && google && elevenlabs && recall;
+            
+            statusDiv.innerHTML = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                    <div>
+                        ${claude ? '✅' : '❌'} Claude AI ${claude ? 'Configured' : 'Missing'}
+                    </div>
+                    <div>
+                        ${google ? '✅' : '❌'} Google Services ${google ? 'Configured' : 'Missing'}
+                    </div>
+                    <div>
+                        ${elevenlabs ? '✅' : '❌'} ElevenLabs ${elevenlabs ? 'Configured' : 'Missing'}
+                    </div>
+                    <div>
+                        ${recall ? '✅' : '❌'} Recall.ai ${recall ? 'Configured' : 'Missing'}
+                    </div>
+                </div>
+                <div style="padding: 10px; background: ${allConfigured ? '#d4edda' : '#f8d7da'}; color: ${allConfigured ? '#155724' : '#721c24'}; border-radius: 5px;">
+                    ${allConfigured ? '✅ All systems ready - Video interviews can be conducted' : '❌ System not ready - Please configure all required services'}
+                </div>
+            `;
         }
 
         async function saveApiKeys() {
@@ -618,6 +663,30 @@
                 elevenlabs_api_key: document.getElementById('elevenlabs-key').value,
                 recall_api_key: document.getElementById('recall-key').value
             };
+
+            // Check required keys
+            if (!keys.claude_api_key || keys.claude_api_key.includes('••••')) {
+                if (!document.getElementById('claude-key').value.includes('••••')) {
+                    alert('Claude API key is required');
+                    return;
+                }
+            }
+            if (!keys.google_credentials || keys.google_credentials === '{ ... }') {
+                alert('Google Service Account credentials are required');
+                return;
+            }
+            if (!keys.elevenlabs_api_key || keys.elevenlabs_api_key.includes('••••')) {
+                if (!document.getElementById('elevenlabs-key').value.includes('••••')) {
+                    alert('ElevenLabs API key is required for voice synthesis');
+                    return;
+                }
+            }
+            if (!keys.recall_api_key || keys.recall_api_key.includes('••••')) {
+                if (!document.getElementById('recall-key').value.includes('••••')) {
+                    alert('Recall.ai API key is required for video recording');
+                    return;
+                }
+            }
 
             // Don't save masked values
             Object.keys(keys).forEach(key => {
@@ -779,6 +848,25 @@
         if (document.getElementById('interview-url')) {
             document.getElementById('interview-url').textContent = `${baseUrl}/candidate?role=ROLE_NAME`;
         }
+        
+        // Ensure all functions are available globally
+        window.showNewRoleForm = showNewRoleForm;
+        window.editRoleByIndex = editRoleByIndex;
+        window.editRole = editRole;
+        window.deleteRole = deleteRole;
+        window.addQuestion = addQuestion;
+        window.addBehavioralQuestion = addBehavioralQuestion;
+        window.saveRole = saveRole;
+        window.hideRoleForm = hideRoleForm;
+        window.copyInterviewUrl = copyInterviewUrl;
+        window.testApiKey = testApiKey;
+        window.saveApiKeys = saveApiKeys;
+        window.filterResults = filterResults;
+        window.viewResult = viewResult;
+        window.viewRecording = viewRecording;
+        window.saveSettings = saveSettings;
+        window.showSection = showSection;
+        window.logout = logout;
     </script>
 </body>
 </html>
