@@ -21,7 +21,7 @@ class ManualInterviewOrchestrator {
     const sessionId = uuidv4();
     
     try {
-      // Check required services (excluding Recall.ai)
+// Check required services
       if (!process.env.CLAUDE_API_KEY) {
         throw new Error('Claude AI is not configured. Please contact administrator.');
       }

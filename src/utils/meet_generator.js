@@ -16,7 +16,7 @@ class MeetGenerator {
                 60 // 60 minute duration
             );
 
-            // Recording functionality removed with Recall.ai
+            // Recording functionality not available
 
             const meetInfo = {
                 sessionId,

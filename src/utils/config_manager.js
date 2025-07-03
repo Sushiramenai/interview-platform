@@ -206,18 +206,7 @@ class ConfigManager {
         }
     }
 
-    async testRecall(apiKey) {
-        try {
-            const axios = require('axios');
-            const response = await axios.get('https://api.recall.ai/api/v1/bot', {
-                headers: { 'Authorization': `Bearer ${apiKey}` }
-            });
-            
-            return { success: true, message: 'Recall.ai API connected successfully' };
-        } catch (error) {
-            return { success: false, message: error.response?.data?.detail || error.message };
-        }
-    }
+    
 }
 
 module.exports = ConfigManager;

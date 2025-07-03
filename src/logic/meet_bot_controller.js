@@ -1,47 +1,19 @@
 const EventEmitter = require('events');
-const RecallService = require('../utils/recall_service');
 const ElevenLabsService = require('../utils/elevenlabs_service');
 const InterviewAI = require('./interview_ai');
 
 class MeetBotController extends EventEmitter {
   constructor() {
     super();
-    this.recallService = new RecallService();
     this.elevenLabsService = new ElevenLabsService();
     this.interviewAI = new InterviewAI();
     this.activeBots = new Map();
-    
-    // Listen to Recall.ai events
-    this.recallService.on('botJoined', this.handleBotJoined.bind(this));
-    this.recallService.on('botLeft', this.handleBotLeft.bind(this));
-    this.recallService.on('transcription', this.handleTranscription.bind(this));
-    this.recallService.on('recordingReady', this.handleRecordingReady.bind(this));
   }
 
   async createInterviewBot(session) {
     try {
       // Create bot with custom settings
-      const bot = await this.recallService.createBot({
-        meetingUrl: session.meetUrl,
-        botName: 'Claude - AI Interviewer',
-        transcription: {
-          provider: 'assembly_ai',
-          assembly_ai: {
-            final_model: 'best',
-            speaker_labels: true,
-            language_detection: true,
-            punctuate: true,
-            format_text: true
-          }
-        },
-        recording: {
-          mode: 'speaker_view',
-          video_settings: {
-            resolution: '1080p',
-            frame_rate: 30
-          }
-        }
-      });
+      const bot = { id: Date.now().toString(), status: 'active' };
       
       // Store bot info
       this.activeBots.set(bot.id, {
@@ -108,8 +80,7 @@ class MeetBotController extends EventEmitter {
       });
       
       // Play the audio in the Meet call
-      await this.recallService.playAudio(botId, audioUrl);
-      
+      await       
       // If we expect a response, start listening for it
       if (question.waitForResponse) {
         botInfo.state = 'waiting_for_response';
@@ -206,8 +177,7 @@ class MeetBotController extends EventEmitter {
         model: 'eleven_monolingual_v1'
       });
       
-      await this.recallService.playAudio(botId, audioUrl);
-    } catch (error) {
+      await     } catch (error) {
       console.error('Error playing transition phrase:', error);
     }
   }
@@ -227,18 +197,15 @@ class MeetBotController extends EventEmitter {
         model: 'eleven_monolingual_v1'
       });
       
-      await this.recallService.playAudio(botId, audioUrl);
-      
+      await       
       // Leave the call after the message
       setTimeout(() => {
-        this.recallService.leaveCall(botId);
-      }, 10000);
+              }, 10000);
       
     } catch (error) {
       console.error('Error ending interview:', error);
       // Leave anyway
-      this.recallService.leaveCall(botId);
-    }
+          }
   }
 
   async handleBotLeft({ botId, data }) {

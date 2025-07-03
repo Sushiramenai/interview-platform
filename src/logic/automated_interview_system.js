@@ -1,5 +1,4 @@
 const ElevenLabsVoiceService = require('../utils/elevenlabs_voice_service');
-const RecallRecordingService = require('../utils/recall_recording_service');
 const InterviewAI = require('./interview_ai');
 const Evaluator = require('./evaluator');
 const fs = require('fs').promises;
@@ -9,7 +8,7 @@ const { v4: uuidv4 } = require('uuid');
 class AutomatedInterviewSystem {
     constructor() {
         this.voiceService = new ElevenLabsVoiceService();
-        this.recordingService = new RecallRecordingService();
+
         this.interviewAI = new InterviewAI();
         this.evaluator = new Evaluator();
         this.activeSessions = new Map();
@@ -40,16 +39,6 @@ class AutomatedInterviewSystem {
             };
 
             this.activeSessions.set(sessionId, session);
-
-            // Start recording if available
-            if (process.env.RECALL_API_KEY) {
-                const recordingBot = await this.recordingService.createBot(
-                    meetUrl,
-                    sessionId,
-                    { candidateName, role: roleTemplate.role }
-                );
-                session.recordingBotId = recordingBot?.botId;
-            }
 
             // Generate interview questions with voice
             await this.prepareInterviewQuestions(session);
@@ -188,12 +177,8 @@ class AutomatedInterviewSystem {
         session.status = 'completed';
         session.completedAt = new Date().toISOString();
 
-        // Stop recording
+        // Recording not available
         let recordingUrl = null;
-        if (session.recordingBotId) {
-            const recording = await this.recordingService.getRecording(session.recordingBotId);
-            recordingUrl = recording?.video_url;
-        }
 
         // Evaluate the interview
         const evaluation = await this.evaluator.evaluateInterview(

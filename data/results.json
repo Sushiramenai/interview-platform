@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "id": "result-1751563109058",
+    "candidateName": "Sarah Johnson",
+    "candidateEmail": "sarah.johnson@test.com",
+    "role": "Customer Support Specialist",
+    "completedAt": "2025-07-03T17:18:29.058Z",
+    "overallScore": 5,
+    "communicationScore": 5,
+    "technicalScore": 5,
+    "summary": "Interview completed. Manual review recommended.",
+    "strengths": [],
+    "interviewDuration": 30,
+    "recordingUrl": null
+  }
+]
