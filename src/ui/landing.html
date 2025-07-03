@@ -213,11 +213,20 @@
                         `;
                     }
                 } else {
-                    alert('Failed to start interview. Please try again.');
+                    // Get error details
+                    let errorMsg = 'Failed to start interview';
+                    try {
+                        const errorData = await response.json();
+                        errorMsg = errorData.error || errorMsg;
+                        console.error('Interview start error:', errorData);
+                    } catch (e) {
+                        console.error('Failed to parse error response');
+                    }
+                    alert(errorMsg + '. Please try again.');
                 }
             } catch (error) {
                 console.error('Error starting interview:', error);
-                alert('Error starting interview. Please try again.');
+                alert('Error starting interview: ' + error.message);
             }
         }
 

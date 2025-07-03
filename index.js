@@ -30,24 +30,56 @@ const configManager = new ConfigManager();
 
 // Initialize services after config
 let interviewAI, evaluator, meetGenerator, driveUploader, automatedInterviewSystem, manualInterviewOrchestrator, selfHostedInterviewOrchestrator;
+let servicesInitialized = false;
+
 async function initializeServices() {
-  await configManager.initialize();
-  await ServiceInitializer.initializeAllServices(configManager);
+  console.log('🔄 Initializing services...');
   
-  interviewAI = new InterviewAI();
-  evaluator = new Evaluator();
-  meetGenerator = new MeetGenerator();
-  driveUploader = new DriveUploader();
-  automatedInterviewSystem = new AutomatedInterviewSystem();
+  try {
+    await configManager.initialize();
+    
+    // Load and set API keys in environment
+    const apiKeys = await configManager.getApiKeys();
+    console.log('📦 Loaded API keys:', {
+      claude: !!apiKeys.CLAUDE_API_KEY,
+      google: !!apiKeys.GOOGLE_CREDENTIALS,
+      elevenlabs: !!apiKeys.ELEVENLABS_API_KEY
+    });
+    
+    await ServiceInitializer.initializeAllServices(configManager);
+    
+    // Create service instances AFTER environment is set up
+    interviewAI = new InterviewAI();
+    evaluator = new Evaluator();
+    meetGenerator = new MeetGenerator();
+    driveUploader = new DriveUploader();
+    automatedInterviewSystem = new AutomatedInterviewSystem();
     manualInterviewOrchestrator = new ManualInterviewOrchestrator();
-  selfHostedInterviewOrchestrator = new SelfHostedInterviewOrchestrator();
+    selfHostedInterviewOrchestrator = new SelfHostedInterviewOrchestrator();
+    
+    servicesInitialized = true;
+    console.log('✅ All services initialized successfully');
+  } catch (error) {
+    console.error('❌ Service initialization error:', error);
+    throw error;
+  }
 }
 
 // Initialize admin user
 AuthMiddleware.initializeAdmin();
 
-// Start initialization
-initializeServices().catch(console.error);
+// Start initialization and track completion
+let servicesReady = false;
+initializeServices()
+  .then(() => {
+    servicesReady = true;
+    servicesInitialized = true;
+  })
+  .catch(error => {
+    console.error('❌ Service initialization failed:', error);
+    servicesReady = false;
+    servicesInitialized = false;
+  });
 
 // Middleware
 // Trust proxy for Replit and other platforms
@@ -102,6 +134,30 @@ app.use((req, res, next) => {
 // Health check for Replit
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// System status check
+app.get('/api/system/status', async (req, res) => {
+  const apiKeys = await configManager.getApiKeys();
+  
+  res.json({
+    servicesInitialized,
+    servicesReady,
+    apiKeys: {
+      claude: !!apiKeys.CLAUDE_API_KEY,
+      google: !!apiKeys.GOOGLE_CREDENTIALS,
+      elevenlabs: !!apiKeys.ELEVENLABS_API_KEY
+    },
+    environment: {
+      claude: !!process.env.CLAUDE_API_KEY,
+      google: !!process.env.GOOGLE_CREDENTIALS,
+      elevenlabs: !!process.env.ELEVENLABS_API_KEY
+    },
+    orchestrators: {
+      selfHosted: !!selfHostedInterviewOrchestrator,
+      manual: !!manualInterviewOrchestrator
+    }
+  });
 });
 
 // Routes
@@ -602,6 +658,13 @@ app.post('/api/interview/automated/start', async (req, res) => {
       elevenlabs: hasElevenLabs
     });
     
+    // Also check environment variables after initialization
+    console.log('Environment variables:', {
+      CLAUDE_API_KEY: !!process.env.CLAUDE_API_KEY,
+      ELEVENLABS_API_KEY: !!process.env.ELEVENLABS_API_KEY,
+      GOOGLE_CREDENTIALS: !!process.env.GOOGLE_CREDENTIALS
+    });
+    
     if (!hasClaude || !hasGoogleCreds || !hasElevenLabs) {
       const missing = [];
       if (!hasClaude) missing.push('Claude AI');
@@ -617,6 +680,17 @@ app.post('/api/interview/automated/start', async (req, res) => {
     await ServiceInitializer.initializeAllServices(configManager);
     
     const roleSlug = role.toLowerCase().replace(/\s+/g, '_');
+    
+    // Ensure services are fully initialized
+    if (!servicesInitialized || !selfHostedInterviewOrchestrator || !manualInterviewOrchestrator) {
+      console.log('⚠️  Services not ready, initializing now...');
+      await initializeServices();
+      
+      // Double-check initialization worked
+      if (!selfHostedInterviewOrchestrator || !manualInterviewOrchestrator) {
+        throw new Error('Failed to initialize interview services. Please check API configuration.');
+      }
+    }
     
     try {
       // Always use self-hosted bot mode
@@ -662,8 +736,23 @@ app.post('/api/interview/automated/start', async (req, res) => {
   } catch (error) {
     console.error('❌ Interview start error:', error);
     console.error('Stack:', error.stack);
+    
+    // More detailed error for debugging
+    const errorDetails = {
+      message: error.message,
+      servicesInitialized: servicesReady,
+      hasOrchestrators: !!selfHostedInterviewOrchestrator && !!manualInterviewOrchestrator,
+      apiKeysSet: {
+        claude: !!process.env.CLAUDE_API_KEY,
+        elevenlabs: !!process.env.ELEVENLABS_API_KEY,
+        google: !!process.env.GOOGLE_CREDENTIALS
+      }
+    };
+    
+    console.error('Error details:', errorDetails);
+    
     res.status(500).json({ 
-      error: `Failed to start interview: ${error.message}` 
+      error: error.message || 'Failed to start interview'
     });
   }
 });
