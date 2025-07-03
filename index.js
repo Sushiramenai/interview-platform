@@ -361,12 +361,12 @@ app.post('/api/config/key', AuthMiddleware.requireAdmin, async (req, res) => {
   console.log('Single key save endpoint called');
   
   // Set aggressive timeout for Replit
-  req.setTimeout(25000); // 25 seconds
-  res.setTimeout(25000);
+  req.setTimeout(30000); // 30 seconds for large keys
+  res.setTimeout(30000);
   
   try {
     const { keyName, keyValue } = req.body;
-    console.log(`Saving single key: ${keyName}`);
+    console.log(`Saving single key: ${keyName} (${keyValue ? keyValue.length : 0} chars)`);
     
     if (!keyName || !keyValue) {
       return res.status(400).json({ 
@@ -375,9 +375,22 @@ app.post('/api/config/key', AuthMiddleware.requireAdmin, async (req, res) => {
       });
     }
     
+    // Validate JSON for Google credentials
+    if (keyName.toLowerCase().includes('google') && keyValue.trim().startsWith('{')) {
+      try {
+        JSON.parse(keyValue);
+        console.log('✅ Valid Google credentials JSON');
+      } catch (e) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Invalid JSON format for Google credentials' 
+        });
+      }
+    }
+    
     // Special handling for large values
-    if (keyValue.length > 10000) {
-      console.log(`Large key value detected: ${keyValue.length} characters`);
+    if (keyValue.length > 5000) {
+      console.log(`Large key value detected: ${keyValue.length} characters (will be compressed)`);
     }
     
     // Ensure config manager is ready
@@ -391,10 +404,11 @@ app.post('/api/config/key', AuthMiddleware.requireAdmin, async (req, res) => {
     
     const normalizedKeyName = keyName.toUpperCase().replace(/-/g, '_');
     
-    // Save with timeout protection
+    // Save with timeout protection - increased timeout for large keys
+    const timeoutDuration = keyValue.length > 5000 ? 25000 : 20000;
     const savePromise = configManager.setApiKey(normalizedKeyName, keyValue.trim());
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Save timeout')), 20000)
+      setTimeout(() => reject(new Error('Save timeout')), timeoutDuration)
     );
     
     await Promise.race([savePromise, timeoutPromise]);
@@ -407,6 +421,24 @@ app.post('/api/config/key', AuthMiddleware.requireAdmin, async (req, res) => {
     
     // Check if it's a timeout
     if (error.message === 'Save timeout') {
+      // On timeout, check if the key was actually saved
+      try {
+        const verification = await configManager.verifyApiKeys();
+        const keyMap = {
+          'CLAUDE_API_KEY': 'claude',
+          'GOOGLE_CREDENTIALS': 'google',
+          'ELEVENLABS_API_KEY': 'elevenlabs'
+        };
+        
+        const normalizedKeyName = keyName.toUpperCase().replace(/-/g, '_');
+        if (verification[keyMap[normalizedKeyName]]) {
+          console.log('✅ Key was saved despite timeout');
+          return res.json({ success: true, saved: normalizedKeyName, note: 'Saved despite timeout' });
+        }
+      } catch (e) {
+        console.error('Could not verify after timeout:', e);
+      }
+      
       res.status(504).json({ 
         success: false, 
         error: 'Request timeout - key may have been saved. Please refresh and check.',

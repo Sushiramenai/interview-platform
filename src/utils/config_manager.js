@@ -1,6 +1,10 @@
 const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
+const zlib = require('zlib');
+const { promisify } = require('util');
+const gzip = promisify(zlib.gzip);
+const gunzip = promisify(zlib.gunzip);
 
 class ConfigManager {
     constructor() {
@@ -126,7 +130,20 @@ class ConfigManager {
         const decryptedKeys = {};
         
         for (const [key, value] of Object.entries(config.apiKeys || {})) {
-            if (value && value.startsWith('enc:')) {
+            if (value && value.startsWith('gzenc:')) {
+                // Handle compressed + encrypted keys
+                try {
+                    const decrypted = this.decrypt(value.substring(6));
+                    if (decrypted) {
+                        const compressed = Buffer.from(decrypted, 'base64');
+                        const decompressed = await gunzip(compressed);
+                        decryptedKeys[key] = decompressed.toString('utf8');
+                    }
+                } catch (error) {
+                    console.error(`Error decrypting compressed key ${key}:`, error);
+                    decryptedKeys[key] = null;
+                }
+            } else if (value && value.startsWith('enc:')) {
                 decryptedKeys[key] = this.decrypt(value.substring(4));
             } else {
                 decryptedKeys[key] = value;
@@ -147,15 +164,22 @@ class ConfigManager {
             
             // Encrypt sensitive keys
             if (keyValue && keyValue.trim()) {
-                console.log(`Encrypting key ${keyName}`);
+                console.log(`Processing key ${keyName} (${keyValue.length} chars)`);
                 
-                // For large keys (like Google credentials), handle specially
-                if (keyValue.length > 5000) {
-                    console.log(`Large key detected (${keyValue.length} chars), using chunked encryption`);
+                let dataToEncrypt = keyValue;
+                let isCompressed = false;
+                
+                // For large keys (like Google credentials), compress first
+                if (keyValue.length > 1000) {
+                    console.log(`Compressing large key ${keyName} before encryption`);
+                    const compressed = await gzip(Buffer.from(keyValue, 'utf8'));
+                    dataToEncrypt = compressed.toString('base64');
+                    isCompressed = true;
+                    console.log(`Compressed from ${keyValue.length} to ${dataToEncrypt.length} chars`);
                 }
                 
-                const encrypted = this.encrypt(keyValue);
-                config.apiKeys[keyName] = 'enc:' + encrypted;
+                const encrypted = this.encrypt(dataToEncrypt);
+                config.apiKeys[keyName] = (isCompressed ? 'gzenc:' : 'enc:') + encrypted;
                 console.log(`Key ${keyName} encrypted successfully`);
                 
                 // CRITICAL: Save the config after updating

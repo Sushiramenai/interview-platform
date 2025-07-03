@@ -740,7 +740,13 @@
                 // Validate JSON
                 try {
                     JSON.parse(googleValue);
-                    keyList.push({ name: 'google_credentials', value: googleValue, displayName: 'Google Credentials' });
+                    keyList.push({ 
+                        name: 'google_credentials', 
+                        value: googleValue, 
+                        displayName: 'Google Credentials',
+                        isLarge: true,
+                        size: googleValue.length
+                    });
                 } catch (e) {
                     alert('Invalid Google Service Account JSON format');
                     return;
@@ -777,7 +783,11 @@
                 
                 // Save each key individually using dedicated endpoint
                 for (const keyInfo of keyList) {
-                    progressDiv.innerHTML = `Saving ${keyInfo.displayName}... (${savedCount + 1}/${keyList.length})`;
+                    let statusText = `Saving ${keyInfo.displayName}... (${savedCount + 1}/${keyList.length})`;
+                    if (keyInfo.isLarge) {
+                        statusText += ` <small>(${Math.round(keyInfo.size/1024)}KB - compressing)</small>`;
+                    }
+                    progressDiv.innerHTML = statusText;
                     
                     const result = await saveSingleKey(keyInfo.name, keyInfo.value, keyInfo.displayName);
                     
