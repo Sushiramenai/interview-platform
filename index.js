@@ -359,6 +359,11 @@ app.get('/api/config/keys/status', AuthMiddleware.requireAdmin, async (req, res)
 // Save single API key endpoint for Replit
 app.post('/api/config/key', AuthMiddleware.requireAdmin, async (req, res) => {
   console.log('Single key save endpoint called');
+  
+  // Set aggressive timeout for Replit
+  req.setTimeout(25000); // 25 seconds
+  res.setTimeout(25000);
+  
   try {
     const { keyName, keyValue } = req.body;
     console.log(`Saving single key: ${keyName}`);
@@ -375,20 +380,44 @@ app.post('/api/config/key', AuthMiddleware.requireAdmin, async (req, res) => {
       console.log(`Large key value detected: ${keyValue.length} characters`);
     }
     
+    // Ensure config manager is ready
+    if (!configManager) {
+      console.log('Creating new ConfigManager instance');
+      const ConfigManager = require('./src/utils/config_manager');
+      configManager = new ConfigManager();
+    }
+    
     await configManager.initialize();
     
     const normalizedKeyName = keyName.toUpperCase().replace(/-/g, '_');
-    await configManager.setApiKey(normalizedKeyName, keyValue.trim());
+    
+    // Save with timeout protection
+    const savePromise = configManager.setApiKey(normalizedKeyName, keyValue.trim());
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Save timeout')), 20000)
+    );
+    
+    await Promise.race([savePromise, timeoutPromise]);
     
     console.log(`✅ Saved: ${normalizedKeyName}`);
     res.json({ success: true, saved: normalizedKeyName });
   } catch (error) {
     console.error('❌ Single key save error:', error);
     console.error('Stack:', error.stack);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message || 'Internal server error'
-    });
+    
+    // Check if it's a timeout
+    if (error.message === 'Save timeout') {
+      res.status(504).json({ 
+        success: false, 
+        error: 'Request timeout - key may have been saved. Please refresh and check.',
+        timeout: true
+      });
+    } else {
+      res.status(500).json({ 
+        success: false, 
+        error: error.message || 'Internal server error'
+      });
+    }
   }
 });
 

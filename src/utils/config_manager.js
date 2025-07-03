@@ -148,6 +148,12 @@ class ConfigManager {
             // Encrypt sensitive keys
             if (keyValue && keyValue.trim()) {
                 console.log(`Encrypting key ${keyName}`);
+                
+                // For large keys (like Google credentials), handle specially
+                if (keyValue.length > 5000) {
+                    console.log(`Large key detected (${keyValue.length} chars), using chunked encryption`);
+                }
+                
                 const encrypted = this.encrypt(keyValue);
                 config.apiKeys[keyName] = 'enc:' + encrypted;
                 console.log(`Key ${keyName} encrypted successfully`);

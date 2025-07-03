@@ -683,38 +683,42 @@
         
         
         
-        // Helper function to save a single key via batch endpoint
+        // Helper function to save a single key via dedicated endpoint
         async function saveSingleKey(keyName, keyValue, displayName) {
-            const singleKeyObj = {};
-            singleKeyObj[keyName] = keyValue;
-            
-            const response = await fetch('/api/config/keys', {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                credentials: 'same-origin',
-                body: JSON.stringify(singleKeyObj)
-            });
-            
-            if (!response.ok) {
+            try {
+                const response = await fetch('/api/config/key', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ keyName, keyValue })
+                });
+                
                 const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    const error = await response.json();
-                    throw new Error(error.error || `HTTP ${response.status}`);
-                } else {
-                    throw new Error(`Server error (HTTP ${response.status})`);
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error(`Server returned HTML instead of JSON (status: ${response.status})`);
                 }
-            }
-            
-            const result = await response.json();
-            if (!result.success && result.useIndividualSave) {
-                // Server says to use individual save, but we're already doing that
-                // This is likely a success
+                
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    return { 
+                        success: false, 
+                        error: result.error || `HTTP ${response.status}`,
+                        timeout: result.timeout || false
+                    };
+                }
+                
                 return { success: true };
+            } catch (error) {
+                console.error(`Error saving ${displayName}:`, error);
+                return { 
+                    success: false, 
+                    error: error.message 
+                };
             }
-            return result;
         }
         
         async function saveApiKeys() {
@@ -771,29 +775,53 @@
                 let savedCount = 0;
                 const errors = [];
                 
-                // Save each key individually using batch endpoint
+                // Save each key individually using dedicated endpoint
                 for (const keyInfo of keyList) {
                     progressDiv.innerHTML = `Saving ${keyInfo.displayName}... (${savedCount + 1}/${keyList.length})`;
                     
-                    try {
-                        const result = await saveSingleKey(keyInfo.name, keyInfo.value, keyInfo.displayName);
+                    const result = await saveSingleKey(keyInfo.name, keyInfo.value, keyInfo.displayName);
+                    
+                    if (result.success) {
+                        savedCount++;
+                        progressDiv.innerHTML += ' ✅<br>';
+                    } else if (result.timeout) {
+                        // Handle timeout specially - key might have been saved
+                        progressDiv.innerHTML += ' ⏱️ (timeout, checking...)<br>';
                         
-                        if (result.success) {
-                            savedCount++;
-                            progressDiv.innerHTML += ' ✅<br>';
-                        } else {
-                            errors.push(`${keyInfo.displayName}: ${result.error || 'Unknown error'}`);
-                            progressDiv.innerHTML += ' ❌<br>';
+                        // Wait a bit and check if the key was saved
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        
+                        // Check key status
+                        try {
+                            const statusRes = await fetch('/api/config/keys/status', {
+                                credentials: 'same-origin'
+                            });
+                            const status = await statusRes.json();
+                            
+                            const keyMap = {
+                                'claude_api_key': 'claude',
+                                'google_credentials': 'google',
+                                'elevenlabs_api_key': 'elevenlabs'
+                            };
+                            
+                            if (status[keyMap[keyInfo.name]]) {
+                                savedCount++;
+                                progressDiv.innerHTML = progressDiv.innerHTML.replace('⏱️ (timeout, checking...)', '✅ (saved despite timeout)');
+                            } else {
+                                errors.push(`${keyInfo.displayName}: Timeout - key not saved`);
+                                progressDiv.innerHTML = progressDiv.innerHTML.replace('⏱️ (timeout, checking...)', '❌ (timeout)');
+                            }
+                        } catch (e) {
+                            errors.push(`${keyInfo.displayName}: ${result.error}`);
+                            progressDiv.innerHTML = progressDiv.innerHTML.replace('⏱️ (timeout, checking...)', '❌');
                         }
-                        
-                        // Small delay between saves on Replit
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                        
-                    } catch (error) {
-                        console.error(`Error saving ${keyInfo.displayName}:`, error);
-                        errors.push(`${keyInfo.displayName}: ${error.message}`);
+                    } else {
+                        errors.push(`${keyInfo.displayName}: ${result.error || 'Unknown error'}`);
                         progressDiv.innerHTML += ' ❌<br>';
                     }
+                    
+                    // Small delay between saves on Replit
+                    await new Promise(resolve => setTimeout(resolve, 500));
                 }
                 
                 // Show final result
