@@ -10,16 +10,28 @@ const path = require('path');
 
 class SelfHostedInterviewOrchestrator {
   constructor() {
+    // Delay service initialization until first use
+    this._initialized = false;
+    this.activeSessions = new Map();
+    this.activeBots = new Map();
+  }
+
+  async _ensureInitialized() {
+    if (this._initialized) return;
+    
+    console.log('Initializing orchestrator services...');
     this.meetGenerator = new MeetGenerator();
     this.interviewAI = new InterviewAI();
     this.evaluator = new Evaluator();
     this.interviewTracker = new InterviewTracker();
     this.elevenLabsService = new ElevenLabsService();
-    this.activeSessions = new Map();
-    this.activeBots = new Map();
+    this._initialized = true;
+    console.log('Orchestrator services initialized successfully');
   }
 
   async startVideoInterview(candidateName, email, roleSlug) {
+    // Ensure services are initialized
+    await this._ensureInitialized();
     const sessionId = uuidv4();
     
     try {

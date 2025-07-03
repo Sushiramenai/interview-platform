@@ -631,6 +631,7 @@ app.get('/api/interviews/:uuid', async (req, res) => {
 
 // Automated Interview API Routes
 app.post('/api/interview/automated/start', async (req, res) => {
+  console.log('\n🎯 Interview start request received');
   try {
     const { candidateName, email, role } = req.body;
     
@@ -681,15 +682,23 @@ app.post('/api/interview/automated/start', async (req, res) => {
     
     const roleSlug = role.toLowerCase().replace(/\s+/g, '_');
     
-    // Ensure services are fully initialized
-    if (!servicesInitialized || !selfHostedInterviewOrchestrator || !manualInterviewOrchestrator) {
-      console.log('⚠️  Services not ready, initializing now...');
+    // Always reinitialize to ensure fresh state on Replit
+    console.log('🔄 Ensuring services are initialized...');
+    try {
       await initializeServices();
-      
-      // Double-check initialization worked
-      if (!selfHostedInterviewOrchestrator || !manualInterviewOrchestrator) {
-        throw new Error('Failed to initialize interview services. Please check API configuration.');
-      }
+      console.log('✅ Services initialization complete');
+    } catch (initError) {
+      console.error('❌ Service initialization failed:', initError);
+      throw new Error('Failed to initialize services: ' + initError.message);
+    }
+    
+    // Verify API keys are in environment
+    const requiredEnvVars = ['CLAUDE_API_KEY', 'ELEVENLABS_API_KEY', 'GOOGLE_CREDENTIALS'];
+    const missingVars = requiredEnvVars.filter(v => !process.env[v]);
+    
+    if (missingVars.length > 0) {
+      console.error('❌ Missing environment variables:', missingVars);
+      throw new Error('Missing required configuration: ' + missingVars.join(', '));
     }
     
     try {

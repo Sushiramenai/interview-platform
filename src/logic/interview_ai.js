@@ -5,10 +5,23 @@ const ElevenLabsVoiceService = require('../utils/elevenlabs_voice_service');
 
 class InterviewAI {
     constructor() {
-        this.anthropic = new Anthropic({
-            apiKey: process.env.CLAUDE_API_KEY,
-        });
-        this.voiceService = new ElevenLabsVoiceService();
+        // Delay Anthropic client creation until API key is available
+        this.anthropic = null;
+        this.voiceService = null;
+    }
+    
+    _ensureClient() {
+        if (!this.anthropic && process.env.CLAUDE_API_KEY) {
+            this.anthropic = new Anthropic({
+                apiKey: process.env.CLAUDE_API_KEY,
+            });
+        }
+        if (!this.voiceService) {
+            this.voiceService = new ElevenLabsVoiceService();
+        }
+        if (!this.anthropic) {
+            throw new Error('Claude API key not configured');
+        }
     }
 
     async loadRoleTemplate(roleName) {

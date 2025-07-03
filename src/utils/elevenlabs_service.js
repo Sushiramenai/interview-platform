@@ -5,6 +5,10 @@ const { v4: uuidv4 } = require('uuid');
 
 class ElevenLabsService {
   constructor() {
+        this.apiKey = process.env.ELEVENLABS_API_KEY;
+        if (!this.apiKey) {
+          console.warn('ElevenLabs API key not set during construction');
+        }
     this.apiKey = process.env.ELEVENLABS_API_KEY;
     this.baseUrl = 'https://api.elevenlabs.io/v1';
     this.voiceId = 'EXAVITQu4vr4xnSDxMaL'; // Default to Rachel voice
