@@ -7,10 +7,20 @@ class ConfigManager {
         this.configPath = path.join(__dirname, '../../data/config.json');
         this.algorithm = 'aes-256-gcm';
         this.secretKey = process.env.CONFIG_ENCRYPTION_KEY || 'default-encryption-key-change-this';
+        this.isReplit = !!(process.env.REPL_SLUG && process.env.REPL_OWNER);
     }
 
     async initialize() {
         try {
+            // Ensure data directory exists
+            const dataDir = path.dirname(this.configPath);
+            try {
+                await fs.access(dataDir);
+            } catch {
+                await fs.mkdir(dataDir, { recursive: true });
+                console.log('Created data directory:', dataDir);
+            }
+            
             await fs.access(this.configPath);
         } catch (error) {
             // Create default config if doesn't exist
@@ -77,14 +87,38 @@ class ConfigManager {
     }
 
     async saveConfig(config) {
-        try {
-            console.log('Saving config to:', this.configPath);
-            await fs.writeFile(this.configPath, JSON.stringify(config, null, 2));
-            console.log('Config file written successfully');
-        } catch (error) {
-            console.error('Error writing config file:', error);
-            throw error;
+        const maxAttempts = this.isReplit ? 3 : 1;
+        let lastError;
+        
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                console.log(`Saving config to: ${this.configPath} (attempt ${attempt}/${maxAttempts})`);
+                
+                // Ensure directory exists
+                const dataDir = path.dirname(this.configPath);
+                await fs.mkdir(dataDir, { recursive: true });
+                
+                // Write to a temporary file first
+                const tempPath = `${this.configPath}.tmp`;
+                await fs.writeFile(tempPath, JSON.stringify(config, null, 2));
+                
+                // Rename to actual file (atomic operation)
+                await fs.rename(tempPath, this.configPath);
+                
+                console.log('Config file written successfully');
+                return;
+            } catch (error) {
+                lastError = error;
+                console.error(`Error writing config file (attempt ${attempt}):`, error.message);
+                
+                if (attempt < maxAttempts && this.isReplit) {
+                    // Wait before retry on Replit
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            }
         }
+        
+        throw lastError;
     }
 
     async getApiKeys() {

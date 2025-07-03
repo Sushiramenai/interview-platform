@@ -4,6 +4,8 @@
 
 A fully automated interview platform where an AI bot joins Google Meet and conducts video interviews with voice synthesis. Perfect for HR teams with limited technical experience.
 
+**🎉 Now Fully Replit-Ready!** No manual configuration needed - the platform automatically detects and optimizes for Replit deployment.
+
 ## 🌟 Key Features
 
 - **AI Bot Interviewer**: Self-hosted bot joins Google Meet and speaks questions

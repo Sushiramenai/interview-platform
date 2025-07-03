@@ -299,6 +299,15 @@
 
     <script>
         // Define all functions first
+        
+        // Detect if running on Replit
+        const isReplit = window.location.hostname.includes('.repl.co') || 
+                       window.location.hostname.includes('.replit.dev') ||
+                       window.location.hostname.includes('.replit.app');
+        
+        if (isReplit) {
+            console.log('🚀 Running on Replit - UI optimizations active');
+        }
 
         // Check authentication on load
         async function checkAuth() {
@@ -703,6 +712,7 @@
             }
             
             console.log('Keys to save:', Object.keys(keys));
+            console.log('Environment: ', isReplit ? 'Replit' : 'Standard');
             
             // Show loading state
             const saveButton = event.target;
@@ -710,56 +720,86 @@
             saveButton.textContent = 'Saving...';
             saveButton.disabled = true;
             
-            try {
-                const response = await fetch('/api/config/keys', {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    credentials: 'same-origin',
-                    body: JSON.stringify(keys)
-                });
-
-                // Handle 502 specifically
-                if (response.status === 502) {
-                    throw new Error('Server error (502). Please try again in a few seconds.');
-                }
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                let data;
+            // Retry logic for resilience
+            const maxAttempts = isReplit ? 3 : 1;
+            let attempts = 0;
+            
+            async function attemptSave() {
+                attempts++;
                 try {
-                    data = await response.json();
-                } catch (e) {
-                    // If JSON parsing fails, assume success
-                    console.log('JSON parse failed, but request may have succeeded');
-                    data = { success: true };
+                    const timeout = isReplit ? 25000 : 10000;
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), timeout);
+                    
+                    const response = await fetch('/api/config/keys', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        credentials: 'same-origin',
+                        body: JSON.stringify(keys),
+                        signal: controller.signal
+                    });
+                    
+                    clearTimeout(timeoutId);
+
+                    // Handle 502 with retry on Replit
+                    if (response.status === 502 && isReplit && attempts < maxAttempts) {
+                        console.log(`Attempt ${attempts} failed with 502, retrying...`);
+                        saveButton.textContent = `Retrying... (${attempts}/${maxAttempts})`;
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        return attemptSave();
+                    }
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    let data;
+                    try {
+                        data = await response.json();
+                    } catch (e) {
+                        // If JSON parsing fails, assume success
+                        console.log('JSON parse failed, but request may have succeeded');
+                        data = { success: true };
+                    }
+                    
+                    if (data.success) {
+                        alert('API keys saved successfully!');
+                        // Reload the page to ensure fresh state
+                        setTimeout(() => window.location.reload(), 1000);
+                    } else {
+                        console.error('Server error:', data);
+                        alert(`Error: ${data.error || 'Failed to save keys'}`);
+                    }
+                } catch (error) {
+                    console.error(`Save error (attempt ${attempts}):`, error);
+                    
+                    if (error.name === 'AbortError' && isReplit && attempts < maxAttempts) {
+                        console.log('Request timed out, retrying...');
+                        saveButton.textContent = `Retrying... (${attempts}/${maxAttempts})`;
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        return attemptSave();
+                    }
+                    
+                    // Final error handling
+                    if (error.name === 'AbortError') {
+                        alert('Request timed out. The server is taking too long to respond.\n\nOn Replit: The keys may have been saved. Please refresh the page to check.');
+                    } else if (error.message.includes('502')) {
+                        alert('Server error. The keys may have been saved.\n\nPlease refresh the page to check, or use the command line:\nnode setup-api-keys-v2.js');
+                    } else if (error.message.includes('Failed to fetch')) {
+                        alert('Cannot connect to server. Make sure the server is running.');
+                    } else {
+                        alert(`Error: ${error.message}`);
+                    }
+                } finally {
+                    saveButton.textContent = originalText;
+                    saveButton.disabled = false;
                 }
-                
-                if (data.success) {
-                    alert('API keys saved successfully!');
-                    // Reload the page to ensure fresh state
-                    setTimeout(() => window.location.reload(), 1000);
-                } else {
-                    console.error('Server error:', data);
-                    alert(`Error: ${data.error || 'Failed to save keys'}`);
-                }
-            } catch (error) {
-                console.error('Save error:', error);
-                if (error.message.includes('502')) {
-                    alert('Replit server error. Please wait 10 seconds and try again. If the problem persists, use: node setup-api-keys.js in the Shell.');
-                } else if (error.message.includes('Failed to fetch')) {
-                    alert('Cannot connect to server. Make sure the server is running.');
-                } else {
-                    alert(`Error: ${error.message}`);
-                }
-            } finally {
-                saveButton.textContent = originalText;
-                saveButton.disabled = false;
             }
+            
+            await attemptSave();
         }
 
         async function testApiKey(service) {

@@ -19,6 +19,12 @@ const SelfHostedInterviewOrchestrator = require('./src/logic/self_hosted_intervi
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Detect Replit environment
+const IS_REPLIT = !!(process.env.REPL_SLUG && process.env.REPL_OWNER);
+if (IS_REPLIT) {
+  console.log('🚀 Running on Replit - applying optimizations');
+}
+
 // Initialize config first
 const configManager = new ConfigManager();
 
@@ -44,8 +50,18 @@ AuthMiddleware.initializeAdmin();
 initializeServices().catch(console.error);
 
 // Middleware
-// Trust Replit's proxy
+// Trust proxy for Replit and other platforms
 app.set('trust proxy', true);
+
+// Add timeout handling for Replit
+if (IS_REPLIT) {
+  app.use((req, res, next) => {
+    // Set a 30-second timeout for all requests on Replit
+    req.setTimeout(30000);
+    res.setTimeout(30000);
+    next();
+  });
+}
 
 app.use(cors({
   origin: function(origin, callback) {
@@ -242,6 +258,7 @@ app.post('/api/config/keys', AuthMiddleware.requireAdmin, async (req, res) => {
     console.log('API Save Request:');
     console.log('- User:', req.user);
     console.log('- Body keys:', Object.keys(req.body));
+    console.log('- Environment: ', IS_REPLIT ? 'Replit' : 'Standard');
     
     const keys = req.body;
     
@@ -282,7 +299,20 @@ app.post('/api/config/keys', AuthMiddleware.requireAdmin, async (req, res) => {
     }
     
     // Re-initialize services with new keys
-    await ServiceInitializer.initializeAllServices(configManager);
+    // On Replit, do this asynchronously to avoid timeout
+    if (IS_REPLIT) {
+      console.log('📦 Deferring service initialization on Replit...');
+      setTimeout(async () => {
+        try {
+          await ServiceInitializer.initializeAllServices(configManager);
+          console.log('✅ Services initialized in background');
+        } catch (err) {
+          console.error('Background init error:', err);
+        }
+      }, 100);
+    } else {
+      await ServiceInitializer.initializeAllServices(configManager);
+    }
     
     console.log(`✅ Saved ${saved.length} API keys successfully`);
     res.json({ success: true, saved: saved });
