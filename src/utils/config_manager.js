@@ -130,7 +130,10 @@ class ConfigManager {
         const decryptedKeys = {};
         
         for (const [key, value] of Object.entries(config.apiKeys || {})) {
-            if (value && value.startsWith('gzenc:')) {
+            if (value && value.startsWith('plain:')) {
+                // Handle plain text keys (temporary, before encryption)
+                decryptedKeys[key] = value.substring(6);
+            } else if (value && value.startsWith('gzenc:')) {
                 // Handle compressed + encrypted keys
                 try {
                     const decrypted = this.decrypt(value.substring(6));
@@ -153,7 +156,7 @@ class ConfigManager {
         return decryptedKeys;
     }
 
-    async setApiKey(keyName, keyValue) {
+    async setApiKey(keyName, keyValue, options = {}) {
         try {
             console.log(`ConfigManager.setApiKey called for ${keyName}`);
             const config = await this.getConfig();
@@ -165,6 +168,27 @@ class ConfigManager {
             // Encrypt sensitive keys
             if (keyValue && keyValue.trim()) {
                 console.log(`Processing key ${keyName} (${keyValue.length} chars)`);
+                
+                // Fast path for large keys - save unencrypted first if requested
+                if (options.fastSave && keyValue.length > 1000) {
+                    console.log(`Using fast save for ${keyName} - encryption will happen later`);
+                    config.apiKeys[keyName] = 'plain:' + keyValue;
+                    await this.saveConfig(config);
+                    console.log(`Config saved quickly for ${keyName}`);
+                    
+                    // Schedule encryption for later
+                    setImmediate(async () => {
+                        try {
+                            console.log(`Background encryption started for ${keyName}`);
+                            await this.setApiKey(keyName, keyValue, { fastSave: false });
+                            console.log(`Background encryption completed for ${keyName}`);
+                        } catch (e) {
+                            console.error(`Background encryption failed for ${keyName}:`, e);
+                        }
+                    });
+                    
+                    return;
+                }
                 
                 let dataToEncrypt = keyValue;
                 let isCompressed = false;

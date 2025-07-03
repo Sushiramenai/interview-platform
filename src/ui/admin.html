@@ -763,76 +763,82 @@
                 // Show special progress for Google credentials
                 const progressDiv = document.getElementById('progress-details');
                 if (progressDiv) {
-                    progressDiv.innerHTML += '<br><small>⏳ Google credentials require extra processing time...</small>';
+                    progressDiv.innerHTML += '<br><small>⏳ Using chunked upload for Google credentials...</small>';
                 }
                 
-                // Method 1: Try the special Google endpoint first
-                try {
-                    const response = await fetch('/api/config/google-creds', {
+                // NEW APPROACH: Split credentials into smaller chunks
+                const CHUNK_SIZE = 200; // 200 characters per chunk for better reliability
+                const chunks = [];
+                
+                // Split the minified JSON into chunks
+                for (let i = 0; i < minified.length; i += CHUNK_SIZE) {
+                    chunks.push(minified.substring(i, i + CHUNK_SIZE));
+                }
+                
+                console.log(`Split into ${chunks.length} chunks`);
+                
+                // Save each chunk
+                for (let i = 0; i < chunks.length; i++) {
+                    if (progressDiv) {
+                        progressDiv.innerHTML = progressDiv.innerHTML.replace(/⏳.*/, `⏳ Saving chunk ${i + 1}/${chunks.length}...`);
+                    }
+                    
+                    const chunkResponse = await fetch('/api/config/google-chunk', {
                         method: 'POST',
                         headers: { 
                             'Content-Type': 'application/json',
                             'Accept': 'application/json'
                         },
                         credentials: 'same-origin',
-                        body: JSON.stringify({ credentials: minified }),
-                        // Allow longer timeout for fetch
-                        signal: AbortSignal.timeout(40000)
+                        body: JSON.stringify({ 
+                            chunkIndex: i,
+                            totalChunks: chunks.length,
+                            chunk: chunks[i]
+                        })
                     });
                     
-                    if (response.ok) {
-                        const result = await response.json();
-                        if (result.success) {
-                            console.log('✅ Google credentials saved via special endpoint');
-                            return { success: true };
+                    if (!chunkResponse.ok) {
+                        const contentType = chunkResponse.headers.get('content-type');
+                        if (contentType && contentType.includes('application/json')) {
+                            const error = await chunkResponse.json();
+                            throw new Error(error.error || 'Failed to save chunk');
                         }
+                        throw new Error(`Failed to save chunk ${i + 1}`);
                     }
-                } catch (e) {
-                    console.log('Special endpoint failed, trying fallback method...');
+                    
+                    // Small delay between chunks
+                    await new Promise(resolve => setTimeout(resolve, 100));
                 }
                 
-                // Method 2: Fallback to base64 encoding to reduce size
-                console.log('Using base64 encoding fallback...');
-                const base64Creds = btoa(minified);
-                console.log(`Base64 encoded: ${base64Creds.length} chars`);
-                
-                const fallbackResponse = await fetch('/api/config/key', {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    credentials: 'same-origin',
-                    body: JSON.stringify({ 
-                        keyName: 'google_credentials_base64',
-                        keyValue: base64Creds 
-                    })
-                });
-                
-                if (!fallbackResponse.ok) {
-                    const contentType = fallbackResponse.headers.get('content-type');
-                    if (contentType && contentType.includes('application/json')) {
-                        const error = await fallbackResponse.json();
-                        return { success: false, error: error.error };
-                    }
-                    return { success: false, error: `Server error ${fallbackResponse.status}` };
+                // Finalize the save
+                if (progressDiv) {
+                    progressDiv.innerHTML = progressDiv.innerHTML.replace(/⏳.*/, '⏳ Finalizing Google credentials...');
                 }
                 
-                // Convert back to regular format
-                const convertResponse = await fetch('/api/config/convert-google-creds', {
+                const finalizeResponse = await fetch('/api/config/google-finalize', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'same-origin'
                 });
                 
-                if (convertResponse.ok) {
-                    console.log('✅ Google credentials saved and converted');
+                if (finalizeResponse.ok) {
+                    console.log('✅ Google credentials saved successfully via chunks');
                     return { success: true };
                 }
                 
-                return { success: true }; // Base64 saved at least
+                throw new Error('Failed to finalize Google credentials');
+                
             } catch (error) {
                 console.error('Google credentials save error:', error);
+                
+                // If chunking fails, show command line option
+                if (error.message.includes('502') || error.message.includes('chunk')) {
+                    return { 
+                        success: false, 
+                        error: 'Server timeout. Please use command line: node save-google-creds.js' 
+                    };
+                }
+                
                 return { success: false, error: error.message };
             }
         }

@@ -400,7 +400,93 @@ app.get('/api/config/keys/status', AuthMiddleware.requireAdmin, async (req, res)
   }
 });
 
-// Special endpoint for Google credentials
+// Temporary storage for Google credential chunks
+const googleCredsChunks = new Map();
+
+// Endpoint to save Google credential chunks
+app.post('/api/config/google-chunk', AuthMiddleware.requireAdmin, async (req, res) => {
+  try {
+    const { chunkIndex, totalChunks, chunk } = req.body;
+    const sessionId = req.sessionID || 'default';
+    
+    console.log(`Received chunk ${chunkIndex + 1}/${totalChunks} (${chunk.length} chars)`);
+    
+    // Initialize storage for this session if needed
+    if (!googleCredsChunks.has(sessionId)) {
+      googleCredsChunks.set(sessionId, {
+        chunks: new Array(totalChunks),
+        timestamp: Date.now()
+      });
+    }
+    
+    // Store the chunk
+    const session = googleCredsChunks.get(sessionId);
+    session.chunks[chunkIndex] = chunk;
+    
+    res.json({ success: true, saved: chunkIndex + 1, total: totalChunks });
+  } catch (error) {
+    console.error('Chunk save error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Endpoint to finalize Google credentials from chunks
+app.post('/api/config/google-finalize', AuthMiddleware.requireAdmin, async (req, res) => {
+  try {
+    const sessionId = req.sessionID || 'default';
+    const session = googleCredsChunks.get(sessionId);
+    
+    if (!session || !session.chunks) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'No chunks found. Please try again.' 
+      });
+    }
+    
+    // Reassemble the credentials
+    const fullCredentials = session.chunks.join('');
+    console.log(`Reassembled credentials: ${fullCredentials.length} chars`);
+    
+    // Validate JSON
+    try {
+      JSON.parse(fullCredentials);
+    } catch (e) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid JSON after reassembly' 
+      });
+    }
+    
+    // Save using ConfigManager with fast save option
+    console.log('Saving reassembled Google credentials with fast save...');
+    await configManager.setApiKey('GOOGLE_CREDENTIALS', fullCredentials, { fastSave: true });
+    
+    // Clean up chunks
+    googleCredsChunks.delete(sessionId);
+    
+    console.log('✅ Google credentials saved successfully from chunks (encryption in progress)');
+    res.json({ success: true });
+    
+  } catch (error) {
+    console.error('Finalize error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Clean up old chunks periodically (every 5 minutes)
+setInterval(() => {
+  const now = Date.now();
+  const timeout = 5 * 60 * 1000; // 5 minutes
+  
+  for (const [sessionId, session] of googleCredsChunks.entries()) {
+    if (now - session.timestamp > timeout) {
+      googleCredsChunks.delete(sessionId);
+      console.log(`Cleaned up expired chunks for session ${sessionId}`);
+    }
+  }
+}, 5 * 60 * 1000);
+
+// Special endpoint for Google credentials (kept for compatibility)
 app.post('/api/config/google-creds', AuthMiddleware.requireAdmin, async (req, res) => {
   console.log('Google credentials save endpoint called');
   
