@@ -400,6 +400,118 @@ app.get('/api/config/keys/status', AuthMiddleware.requireAdmin, async (req, res)
   }
 });
 
+// Special endpoint for Google credentials
+app.post('/api/config/google-creds', AuthMiddleware.requireAdmin, async (req, res) => {
+  console.log('Google credentials save endpoint called');
+  
+  // Set long timeout for Google credentials
+  req.setTimeout(45000); // 45 seconds
+  res.setTimeout(45000);
+  
+  try {
+    const { credentials } = req.body;
+    
+    if (!credentials) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Credentials required' 
+      });
+    }
+    
+    console.log(`Saving Google credentials: ${credentials.length} characters`);
+    
+    // Parse to validate JSON
+    let parsed;
+    try {
+      parsed = JSON.parse(credentials);
+    } catch (e) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid JSON format' 
+      });
+    }
+    
+    // Ensure config manager is ready
+    if (!configManager) {
+      const ConfigManager = require('./src/utils/config_manager');
+      configManager = new ConfigManager();
+      await configManager.initialize();
+    }
+    
+    // Save in chunks to avoid timeout
+    console.log('Starting chunked save for Google credentials...');
+    
+    // First, save a placeholder
+    await configManager.setApiKey('GOOGLE_CREDENTIALS_TEMP', 'pending');
+    
+    // Then save the actual credentials
+    try {
+      await configManager.setApiKey('GOOGLE_CREDENTIALS', credentials);
+      
+      // Clean up temp key
+      const config = await configManager.getConfig();
+      delete config.apiKeys.GOOGLE_CREDENTIALS_TEMP;
+      await configManager.saveConfig(config);
+      
+      console.log('✅ Google credentials saved successfully');
+      res.json({ success: true });
+    } catch (saveError) {
+      console.error('Failed to save Google credentials:', saveError);
+      
+      // Check if it was actually saved despite error
+      const verification = await configManager.verifyApiKeys();
+      if (verification.google) {
+        console.log('✅ Google credentials were saved despite error');
+        res.json({ success: true });
+      } else {
+        throw saveError;
+      }
+    }
+    
+  } catch (error) {
+    console.error('❌ Google credentials save error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Failed to save credentials'
+    });
+  }
+});
+
+// Convert base64 Google credentials back to normal format
+app.post('/api/config/convert-google-creds', AuthMiddleware.requireAdmin, async (req, res) => {
+  try {
+    console.log('Converting Google credentials from base64...');
+    
+    const config = await configManager.getConfig();
+    const base64Creds = config.apiKeys?.GOOGLE_CREDENTIALS_BASE64;
+    
+    if (base64Creds && base64Creds.startsWith('enc:')) {
+      // Decrypt first
+      const decrypted = configManager.decrypt(base64Creds.substring(4));
+      if (decrypted) {
+        // Decode from base64
+        const jsonCreds = Buffer.from(decrypted, 'base64').toString('utf8');
+        
+        // Save as regular GOOGLE_CREDENTIALS
+        await configManager.setApiKey('GOOGLE_CREDENTIALS', jsonCreds);
+        
+        // Remove the base64 version
+        delete config.apiKeys.GOOGLE_CREDENTIALS_BASE64;
+        await configManager.saveConfig(config);
+        
+        console.log('✅ Google credentials converted successfully');
+        res.json({ success: true });
+        return;
+      }
+    }
+    
+    res.json({ success: false, message: 'No base64 credentials found' });
+  } catch (error) {
+    console.error('Conversion error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Save single API key endpoint for Replit
 app.post('/api/config/key', AuthMiddleware.requireAdmin, async (req, res) => {
   console.log('Single key save endpoint called');
