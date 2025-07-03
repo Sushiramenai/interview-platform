@@ -1,0 +1,13 @@
+{
+  "role": "Customer Support Specialist",
+  "traits": ["empathetic", "calm", "solution-focused"],
+  "questions": [
+    "Tell me about a time you turned an angry customer into a happy one.",
+    "How do you handle back-to-back tickets and phone calls?",
+    "What tools have you used for support?"
+  ],
+  "behavioral_questions": [
+    "Describe a time when you failed and how you responded.",
+    "Tell me about a time you had to de-escalate a situation quickly."
+  ]
+}

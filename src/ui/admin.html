@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interview Platform - Admin Dashboard</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background-color: #343a40;
+            color: white;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            height: calc(100vh - 80px);
+        }
+        .sidebar {
+            width: 250px;
+            background-color: #495057;
+            color: white;
+            padding: 20px;
+        }
+        .sidebar a {
+            display: block;
+            color: white;
+            padding: 10px;
+            text-decoration: none;
+            margin-bottom: 10px;
+            border-radius: 6px;
+        }
+        .sidebar a:hover, .sidebar a.active {
+            background-color: #6c757d;
+        }
+        .main-content {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+        }
+        .section {
+            display: none;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .section.active {
+            display: block;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+        textarea {
+            width: 100%;
+            min-height: 400px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-family: monospace;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+        .question-list {
+            list-style: none;
+            padding: 0;
+        }
+        .question-list li {
+            background-color: #f8f9fa;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Interview Platform Admin</h1>
+        <button class="btn" style="position: absolute; right: 20px; top: 20px;" onclick="logout()">Logout</button>
+    </div>
+    
+    <div class="container">
+        <div class="sidebar">
+            <a href="#" class="nav-link active" data-section="interviews">Interviews</a>
+            <a href="#" class="nav-link" data-section="roles">Role Templates</a>
+            <a href="#" class="nav-link" data-section="settings">Settings</a>
+        </div>
+        
+        <div class="main-content">
+            <!-- Interviews Section -->
+            <div id="interviews" class="section active">
+                <h2>Recent Interviews</h2>
+                <table id="interviews-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Candidate</th>
+                            <th>Role</th>
+                            <th>Score</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="interviews-tbody">
+                        <tr>
+                            <td colspan="6" style="text-align: center;">Loading interviews...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Roles Section -->
+            <div id="roles" class="section">
+                <h2>Role Templates</h2>
+                <button class="btn btn-primary" onclick="showNewRoleForm()">Add New Role</button>
+                <div id="roles-list" style="margin-top: 20px;">
+                    Loading roles...
+                </div>
+                
+                <div id="role-form" style="display: none; margin-top: 30px;">
+                    <h3>Create/Edit Role</h3>
+                    <div class="form-group">
+                        <label>Role Name</label>
+                        <input type="text" id="role-name" placeholder="e.g., Customer Support Specialist">
+                    </div>
+                    <div class="form-group">
+                        <label>Key Traits (comma-separated)</label>
+                        <input type="text" id="role-traits" placeholder="e.g., empathetic, calm, solution-focused">
+                    </div>
+                    <div class="form-group">
+                        <label>Interview Questions</label>
+                        <div id="questions-container"></div>
+                        <button class="btn btn-success" onclick="addQuestion()">Add Question</button>
+                    </div>
+                    <div class="form-group">
+                        <label>Behavioral Questions</label>
+                        <div id="behavioral-container"></div>
+                        <button class="btn btn-success" onclick="addBehavioralQuestion()">Add Behavioral Question</button>
+                    </div>
+                    <button class="btn btn-primary" onclick="saveRole()">Save Role</button>
+                    <button class="btn" onclick="hideRoleForm()">Cancel</button>
+                </div>
+            </div>
+            
+            <!-- Settings Section -->
+            <div id="settings" class="section">
+                <h2>Platform Settings</h2>
+                <div class="form-group">
+                    <label>Welcome Page Content (Markdown)</label>
+                    <textarea id="intro-content"></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check authentication on load
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/auth/check');
+                if (!response.ok) {
+                    window.location.href = '/login';
+                }
+            } catch (error) {
+                window.location.href = '/login';
+            }
+        }
+
+        async function logout() {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            window.location.href = '/login';
+        }
+
+        // Navigation
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+                
+                link.classList.add('active');
+                const sectionId = link.getAttribute('data-section');
+                document.getElementById(sectionId).classList.add('active');
+            });
+        });
+
+        // Load interviews
+        async function loadInterviews() {
+            try {
+                const response = await fetch('/api/interviews');
+                const interviews = await response.json();
+                const tbody = document.getElementById('interviews-tbody');
+                
+                if (interviews.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No interviews yet</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = interviews.map(interview => `
+                    <tr>
+                        <td>${new Date(interview.date).toLocaleDateString()}</td>
+                        <td>${interview.name}</td>
+                        <td>${interview.role}</td>
+                        <td>${interview.fit_score}/10</td>
+                        <td>${interview.status}</td>
+                        <td>
+                            <button class="btn btn-primary" onclick="viewInterview('${interview.uuid}')">View</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading interviews:', error);
+            }
+        }
+
+        // Load roles
+        async function loadRoles() {
+            try {
+                const response = await fetch('/api/roles');
+                const roles = await response.json();
+                const container = document.getElementById('roles-list');
+                
+                if (roles.length === 0) {
+                    container.innerHTML = '<p>No roles defined yet</p>';
+                    return;
+                }
+                
+                container.innerHTML = roles.map(role => `
+                    <div style="background: #f8f9fa; padding: 20px; margin-bottom: 20px; border-radius: 8px;">
+                        <h3>${role.role}</h3>
+                        <p><strong>Traits:</strong> ${role.traits.join(', ')}</p>
+                        <p><strong>Questions:</strong> ${role.questions.length} interview + ${role.behavioral_questions.length} behavioral</p>
+                        <button class="btn" onclick="editRole('${role.role}')">Edit</button>
+                        <button class="btn btn-danger" onclick="deleteRole('${role.role}')">Delete</button>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading roles:', error);
+            }
+        }
+
+        // Load settings
+        async function loadSettings() {
+            try {
+                const response = await fetch('/api/settings');
+                const settings = await response.json();
+                document.getElementById('intro-content').value = settings.intro_content || '';
+            } catch (error) {
+                console.error('Error loading settings:', error);
+            }
+        }
+
+        // Save settings
+        async function saveSettings() {
+            try {
+                const settings = {
+                    intro_content: document.getElementById('intro-content').value
+                };
+                
+                const response = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(settings)
+                });
+                
+                if (response.ok) {
+                    alert('Settings saved successfully!');
+                }
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                alert('Error saving settings');
+            }
+        }
+
+        // Role management
+        function showNewRoleForm() {
+            document.getElementById('role-form').style.display = 'block';
+            document.getElementById('questions-container').innerHTML = '';
+            document.getElementById('behavioral-container').innerHTML = '';
+            addQuestion();
+            addBehavioralQuestion();
+        }
+
+        function hideRoleForm() {
+            document.getElementById('role-form').style.display = 'none';
+        }
+
+        function addQuestion() {
+            const container = document.getElementById('questions-container');
+            const div = document.createElement('div');
+            div.className = 'form-group';
+            div.innerHTML = `
+                <input type="text" class="question-input" placeholder="Enter interview question">
+                <button class="btn btn-danger" onclick="this.parentElement.remove()">Remove</button>
+            `;
+            container.appendChild(div);
+        }
+
+        function addBehavioralQuestion() {
+            const container = document.getElementById('behavioral-container');
+            const div = document.createElement('div');
+            div.className = 'form-group';
+            div.innerHTML = `
+                <input type="text" class="behavioral-input" placeholder="Enter behavioral question">
+                <button class="btn btn-danger" onclick="this.parentElement.remove()">Remove</button>
+            `;
+            container.appendChild(div);
+        }
+
+        async function saveRole() {
+            const role = {
+                role: document.getElementById('role-name').value,
+                traits: document.getElementById('role-traits').value.split(',').map(t => t.trim()),
+                questions: Array.from(document.querySelectorAll('.question-input')).map(i => i.value).filter(v => v),
+                behavioral_questions: Array.from(document.querySelectorAll('.behavioral-input')).map(i => i.value).filter(v => v)
+            };
+            
+            try {
+                const response = await fetch('/api/roles', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(role)
+                });
+                
+                if (response.ok) {
+                    alert('Role saved successfully!');
+                    hideRoleForm();
+                    loadRoles();
+                }
+            } catch (error) {
+                console.error('Error saving role:', error);
+                alert('Error saving role');
+            }
+        }
+
+        // Initialize
+        checkAuth();
+        loadInterviews();
+        loadRoles();
+        loadSettings();
+    </script>
+</body>
+</html>

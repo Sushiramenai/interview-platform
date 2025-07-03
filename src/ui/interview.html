@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interview in Progress</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #1a1a1a;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        .header {
+            background-color: #2a2a2a;
+            padding: 20px;
+            text-align: center;
+        }
+        .meet-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .controls {
+            background-color: #2a2a2a;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .end-btn {
+            background-color: #dc3545;
+            color: white;
+        }
+        .status {
+            background-color: #28a745;
+            padding: 10px 20px;
+            border-radius: 20px;
+            display: inline-block;
+        }
+        #meet-frame {
+            width: 100%;
+            max-width: 1200px;
+            height: 100%;
+            border: none;
+            border-radius: 12px;
+            background-color: #000;
+        }
+        .loading {
+            text-align: center;
+            padding: 50px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Interview Session</h1>
+        <span class="status" id="status">Initializing...</span>
+    </div>
+    
+    <div class="meet-container">
+        <div id="loading" class="loading">
+            <h2>Setting up your interview...</h2>
+            <p>Please allow camera and microphone access when prompted</p>
+        </div>
+        <iframe id="meet-frame" style="display: none;"></iframe>
+    </div>
+    
+    <div class="controls">
+        <button class="end-btn" onclick="endInterview()">End Interview</button>
+    </div>
+
+    <script type="module">
+        import { InterviewSession } from './interview_session.js';
+        
+        let session;
+        
+        async function initializeInterview() {
+            const params = new URLSearchParams(window.location.search);
+            const role = params.get('role');
+            const candidateId = params.get('id');
+            
+            try {
+                session = new InterviewSession(role, candidateId);
+                const meetUrl = await session.createMeetRoom();
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('meet-frame').style.display = 'block';
+                document.getElementById('meet-frame').src = meetUrl;
+                document.getElementById('status').textContent = 'Recording in Progress';
+                
+                // Start AI interviewer
+                await session.startAIInterviewer();
+            } catch (error) {
+                console.error('Failed to initialize interview:', error);
+                document.getElementById('loading').innerHTML = '<h2>Error setting up interview</h2><p>' + error.message + '</p>';
+            }
+        }
+        
+        window.endInterview = async function() {
+            if (confirm('Are you sure you want to end the interview?')) {
+                try {
+                    await session.endInterview();
+                    window.location.href = '/';
+                } catch (error) {
+                    console.error('Error ending interview:', error);
+                }
+            }
+        }
+        
+        initializeInterview();
+    </script>
+    <script src="/logic/interview_session.js" type="module"></script>
+</body>
+</html>

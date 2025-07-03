@@ -1,0 +1,67 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Production
+/build
+/dist
+
+# Misc
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+logs/
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Uploads and temporary files
+uploads/
+temp/
+transcripts/
+*.mp3
+*.mp4
+
+# Interview data (keep structure, ignore content)
+data/interviews.json
+src/reports/*.json
+
+# Replit
+.replit.local
+.cache/
+.config/
+.upm/
+
+# Keep example files
+!.env.example
+!src/roles/customer_support.json
