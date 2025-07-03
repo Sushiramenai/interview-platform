@@ -271,14 +271,21 @@ app.get('/api/config/keys/status', AuthMiddleware.requireAdmin, async (req, res)
 
 // Save single API key endpoint for Replit
 app.post('/api/config/key', AuthMiddleware.requireAdmin, async (req, res) => {
+  console.log('Single key save endpoint called');
   try {
     const { keyName, keyValue } = req.body;
+    console.log(`Saving single key: ${keyName}`);
     
     if (!keyName || !keyValue) {
       return res.status(400).json({ 
         success: false, 
         error: 'Key name and value required' 
       });
+    }
+    
+    // Special handling for large values
+    if (keyValue.length > 10000) {
+      console.log(`Large key value detected: ${keyValue.length} characters`);
     }
     
     await configManager.initialize();
@@ -290,9 +297,10 @@ app.post('/api/config/key', AuthMiddleware.requireAdmin, async (req, res) => {
     res.json({ success: true, saved: normalizedKeyName });
   } catch (error) {
     console.error('❌ Single key save error:', error);
+    console.error('Stack:', error.stack);
     res.status(500).json({ 
       success: false, 
-      error: error.message 
+      error: error.message || 'Internal server error'
     });
   }
 });
@@ -314,13 +322,9 @@ app.post('/api/config/keys', AuthMiddleware.requireAdmin, async (req, res) => {
       });
     }
     
-    // On Replit, recommend using individual saves
+    // On Replit with multiple keys, just log a warning but proceed
     if (IS_REPLIT && Object.keys(keys).length > 1) {
-      return res.status(200).json({ 
-        success: false, 
-        useIndividualSave: true,
-        message: 'Please save keys individually on Replit' 
-      });
+      console.log('⚠️  Multiple keys on Replit - may timeout, but will try anyway');
     }
     
     // Ensure config manager is initialized
