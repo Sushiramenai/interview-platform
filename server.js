@@ -381,9 +381,9 @@ Just acknowledge and ask the single question.`;
             Common patterns to look for:
             - "Can you repeat that?" / "What was the question?" / "Sorry, I didn't catch that" → repeat
             - "Can you clarify?" / "What do you mean by..." / "I'm not sure I understand" → clarify
-            - "I don't know" / "I'm not familiar with..." / "I haven't experienced that" → unsure
+            - "I don't know" / "I'm not familiar with..." / "I haven't had that experience" → unsure
             - "Can we skip this?" / "Next question" / "Pass" → skip
-            - "That's all" / "I'm done" / "That's my answer" / "Next" → finished
+            - "That's all" / "I'm done" / "That's my answer" / "I'm finished" → finished
             - Normal substantive answer → normal
             
             Respond with JSON: { "type": "repeat|clarify|unsure|skip|finished|normal", "confidence": 0.0-1.0 }`;
@@ -428,15 +428,17 @@ Just acknowledge and ask the single question.`;
                     break;
                     
                 case 'unsure':
-                    systemPrompt = `You are an encouraging interviewer. The candidate seems unsure or unfamiliar with the topic. 
-                    Be supportive and either rephrase the question in simpler terms or offer to move to the next question.`;
-                    userPrompt = `Question: ${question}\n\nCandidate said: ${response}\n\nRespond supportively and offer alternatives.`;
+                    // Professional interviews don't offer to skip - they wait patiently
+                    systemPrompt = `You are a professional interviewer. The candidate seems unsure about the question. 
+                    Simply rephrase the question more clearly. Do NOT offer to skip or comment on difficulty.`;
+                    userPrompt = `Original question: ${question}\n\nCandidate indicated uncertainty: ${response}\n\nRephrase the question clearly and wait for their answer.`;
                     break;
                     
                 case 'skip':
-                    systemPrompt = `You are an understanding interviewer. The candidate wants to skip this question. 
-                    Acknowledge this politely and indicate you'll move to the next question.`;
-                    userPrompt = `The candidate wants to skip the current question. Respond professionally and indicate moving forward.`;
+                    // In professional interviews, we don't skip questions
+                    systemPrompt = `You are a professional interviewer. The candidate wants to skip the question. 
+                    Politely redirect them back to the question. This is an interview and all questions need to be addressed.`;
+                    userPrompt = `The candidate wants to skip. Professionally explain that you'd like to hear their thoughts on this question, even if brief.`;
                     break;
                     
                 default:
@@ -1321,9 +1323,9 @@ io.on('connection', (socket) => {
         );
         
         // Start interview with greeting
-        const greeting = `Hello ${interview.candidateName}! I'm your interviewer from Senbird today. 
+        const greeting = `Hello ${interview.candidateName}. I'm your interviewer from Senbird today. 
         I'll be asking you some questions about your background and experience for the ${interview.role} position. 
-        Please speak clearly and take your time with each answer. Let's begin!`;
+        Please speak clearly and take your time with each answer.`;
         
         const greetingAudio = await voiceService.generateSpeech(greeting);
         
@@ -1393,6 +1395,31 @@ io.on('connection', (socket) => {
             timestamp: new Date().toISOString()
         });
         
+        // Handle greeting response (before first question)
+        if (socket.questionIndex === -1) {
+            console.log('Candidate responded to greeting:', text);
+            
+            // Simple acknowledgment and move to first question
+            const response = "Great! Let's begin with the first question.";
+            const audio = await voiceService.generateSpeech(response);
+            
+            socket.emit('ai-acknowledgment', {
+                text: response,
+                audio: audio,
+                moveToNext: true,
+                waitTime: 1500
+            });
+            
+            socket.transcript.push({
+                speaker: 'AI',
+                text: response,
+                timestamp: new Date().toISOString()
+            });
+            
+            aiInterviewer.updateConversationHistory(socket.interviewId, 'AI', response);
+            return;
+        }
+        
         socket.responses.push({
             questionIndex: socket.questionIndex,
             question: socket.questions[socket.questionIndex],
@@ -1402,7 +1429,7 @@ io.on('connection', (socket) => {
         
         aiInterviewer.updateConversationHistory(socket.interviewId, 'Candidate', text);
         
-        // First, analyze what type of response this is
+        // Analyze what type of response this is
         const currentQuestion = socket.questions[socket.questionIndex];
         const analysis = await aiInterviewer.analyzeResponse(currentQuestion, text);
         console.log('Response analysis:', analysis);
@@ -1442,12 +1469,12 @@ io.on('connection', (socket) => {
                 const audio = await voiceService.generateSpeech(contextualResponse);
                 
                 if (analysis.type === 'skip') {
-                    // Move to next question if skipping
-                    socket.emit('ai-acknowledgment', {
+                    // Don't actually skip - redirect back to question
+                    socket.emit('ai-followup', {
                         text: contextualResponse,
                         audio: audio,
-                        moveToNext: true,
-                        waitTime: 1000
+                        isSpecialResponse: true,
+                        responseType: 'redirect'
                     });
                 } else {
                     // For repeat/clarify/unsure, stay on same question
@@ -1499,12 +1526,12 @@ io.on('connection', (socket) => {
                                         text.split(' ').length > 15;
             
             if (isSubstantialAnswer) {
-                // Generate a thoughtful acknowledgment and wait for them to continue
-                const acknowledgmentPrompt = `The candidate just gave this answer: "${text}". 
-                Generate a very brief acknowledgment (under 10 words) that shows active listening.
-                Don't ask a question. Just acknowledge what they said.`;
+                // Generate a simple, professional acknowledgment
+                const acknowledgmentPrompt = `Generate a brief, neutral acknowledgment (under 8 words).
+                Examples: "Thank you." "I understand." "Got it." "Noted."
+                Do NOT give feedback, opinions, or ask questions.`;
                 
-                let ack = "I see."; // Default fallback
+                let ack = "Thank you."; // Default fallback
                 
                 try {
                     const openai = aiInterviewer.getOpenAIClient();
@@ -1514,15 +1541,19 @@ io.on('connection', (socket) => {
                             messages: [
                                 { 
                                     role: 'system', 
-                                    content: 'You are an active listener. Generate very brief acknowledgments without questions.' 
+                                    content: 'You are a professional interviewer. Give brief, neutral acknowledgments only.' 
                                 },
                                 { role: 'user', content: acknowledgmentPrompt }
                             ],
-                            max_tokens: 20,
-                            temperature: 0.7
+                            max_tokens: 15,
+                            temperature: 0.3 // Lower temperature for consistency
                         });
                         
-                        ack = response.choices[0].message.content;
+                        ack = response.choices[0].message.content.trim();
+                        // Ensure it's actually brief
+                        if (ack.split(' ').length > 8) {
+                            ack = "Thank you.";
+                        }
                     }
                 } catch (error) {
                     console.error('Error generating acknowledgment:', error);

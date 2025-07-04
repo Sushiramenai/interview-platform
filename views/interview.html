@@ -1225,10 +1225,11 @@
                     // Resume listening after AI finishes speaking
                     setTimeout(() => {
                         startListening();
-                        // If this was the greeting and we haven't asked first question, request it
+                        // Don't automatically request first question after greeting
+                        // Wait for candidate to respond to greeting first
                         if (currentQuestionIndex === -1 && !questionRequested) {
-                            questionRequested = true;
-                            socket.emit('ready-for-question');
+                            console.log('Greeting finished, waiting for candidate response...');
+                            // The candidate should acknowledge or respond before we continue
                         }
                     }, 500);
                 }
@@ -1518,11 +1519,10 @@
                             startListening();
                         }
                         
-                        // If we haven't requested the first question yet
-                        if (!questionRequested && audioQueue.length === 0) {
-                            console.log('Requesting first question...');
-                            questionRequested = true;
-                            socket.emit('ready-for-question');
+                        // Don't auto-request questions - wait for candidate
+                        if (!questionRequested && audioQueue.length === 0 && currentQuestionIndex > -1) {
+                            console.log('No activity but question already in progress');
+                            // Just ensure speech recognition is working
                         }
                     }
                 }
