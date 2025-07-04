@@ -934,10 +934,21 @@
                         </a>
                     </div>
                     <div class="video-container">
-                        <video controls>
+                        <video id="interviewVideo" controls preload="metadata" style="width: 100%;">
+                            <source src="${data.recordingUrl}" type="video/webm;codecs=vp8,opus">
+                            <source src="${data.recordingUrl}" type="video/webm;codecs=vp9,opus">
                             <source src="${data.recordingUrl}" type="video/webm">
+                            <source src="${data.recordingUrl}" type="video/mp4">
                             Your browser does not support video playback.
                         </video>
+                    </div>
+                    <div id="videoError" style="display: none; padding: 20px; text-align: center; color: #666;">
+                        <i class="fas fa-exclamation-circle" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                        <p>Unable to load video. The recording may still be processing or your browser may not support the format.</p>
+                        <p>You can still <a href="${data.recordingUrl}" download>download the video</a> to view it locally.</p>
+                        <p style="margin-top: 10px; font-size: 0.9em; color: #999;">
+                            <em>Note: Some browsers may have issues with WebM format. Try Chrome or Firefox for best compatibility.</em>
+                        </p>
                     </div>
                 </div>
                 ` : ''}
@@ -945,6 +956,59 @@
             
             // Store data for download
             window.interviewData = data;
+            
+            // Add video error handling
+            if (data.recordingUrl) {
+                setTimeout(() => {
+                    const video = document.getElementById('interviewVideo');
+                    if (video) {
+                        let errorShown = false;
+                        
+                        video.addEventListener('error', function(e) {
+                            if (!errorShown) {
+                                console.error('Video loading error:', e);
+                                console.error('Video error code:', video.error?.code);
+                                console.error('Video error message:', video.error?.message);
+                                console.error('Recording URL:', data.recordingUrl);
+                                
+                                video.style.display = 'none';
+                                document.getElementById('videoError').style.display = 'block';
+                                errorShown = true;
+                            }
+                        });
+                        
+                        // Check each source for errors
+                        const sources = video.querySelectorAll('source');
+                        sources.forEach((source, index) => {
+                            source.addEventListener('error', function(e) {
+                                console.error(`Source ${index + 1} failed:`, source.type, e);
+                            });
+                        });
+                        
+                        // Also check if video can be loaded
+                        video.addEventListener('loadedmetadata', function() {
+                            console.log('Video loaded successfully');
+                            console.log('Video duration:', video.duration, 'seconds');
+                            console.log('Video dimensions:', video.videoWidth + 'x' + video.videoHeight);
+                        });
+                        
+                        video.addEventListener('loadeddata', function() {
+                            console.log('Video data loaded, ready to play');
+                        });
+                        
+                        // Add loading progress
+                        video.addEventListener('progress', function() {
+                            if (video.buffered.length > 0) {
+                                const percent = (video.buffered.end(0) / video.duration) * 100;
+                                console.log('Video buffered:', percent.toFixed(2) + '%');
+                            }
+                        });
+                        
+                        // Force reload if needed
+                        video.load();
+                    }
+                }, 100);
+            }
         }
         
         function formatDate(dateString) {

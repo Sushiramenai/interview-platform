@@ -21,7 +21,14 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use('/css', express.static(path.join(__dirname, 'public/css')));
 app.use('/images', express.static(path.join(__dirname, 'public/images')));
-app.use('/data/recordings', express.static(path.join(__dirname, 'data/recordings')));
+app.use('/data/recordings', express.static(path.join(__dirname, 'data/recordings'), {
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.webm')) {
+            res.set('Content-Type', 'video/webm');
+            res.set('Accept-Ranges', 'bytes');
+        }
+    }
+}));
 app.use(express.static('public'));
 
 // In-memory storage (could be replaced with database)
@@ -1141,19 +1148,48 @@ io.on('connection', (socket) => {
     });
     
     socket.on('save-recording', async (data) => {
-        if (!socket.interviewId) return;
+        console.log('Received save-recording request for interview:', socket.interviewId);
+        
+        if (!socket.interviewId) {
+            console.error('No interview ID on socket');
+            return;
+        }
         
         try {
+            if (!data.recording) {
+                console.error('No recording data received');
+                return;
+            }
+            
+            // Extract base64 data
+            const base64Data = data.recording.split(',')[1];
+            if (!base64Data) {
+                console.error('Invalid recording format - no base64 data found');
+                return;
+            }
+            
+            console.log('Base64 data length:', base64Data.length);
+            
             // Save recording blob
             const recordingPath = path.join(__dirname, 'data/recordings', `${socket.interviewId}.webm`);
+            console.log('Saving recording to:', recordingPath);
+            
             await fs.mkdir(path.dirname(recordingPath), { recursive: true });
             
-            const buffer = Buffer.from(data.recording.split(',')[1], 'base64');
+            const buffer = Buffer.from(base64Data, 'base64');
+            console.log('Buffer size:', buffer.length, 'bytes (', (buffer.length / 1024 / 1024).toFixed(2), 'MB)');
+            
             await fs.writeFile(recordingPath, buffer);
             
-            console.log('Recording saved for interview:', socket.interviewId);
+            // Verify file was saved
+            const stats = await fs.stat(recordingPath);
+            console.log('Recording saved successfully:');
+            console.log('- File size:', stats.size, 'bytes');
+            console.log('- File path:', recordingPath);
+            console.log('- Interview ID:', socket.interviewId);
         } catch (error) {
             console.error('Error saving recording:', error);
+            console.error('Stack trace:', error.stack);
         }
     });
     
