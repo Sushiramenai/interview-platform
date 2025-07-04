@@ -162,7 +162,15 @@
                     }
                     
                     // Check interview mode
-                    if (session.mode === 'self-hosted-bot') {
+                    if (session.mode === 'webrtc') {
+                        // WebRTC-based interview
+                        const fullUrl = window.location.origin + session.meetUrl;
+                        alert('Your AI interview is ready! You will now join the interview room.');
+                        
+                        // Open interview room in same window
+                        window.location.href = fullUrl;
+                        
+                    } else if (session.mode === 'self-hosted-bot') {
                         // Self-hosted AI bot interview
                         if (session.meetUrl && session.meetUrl !== '#') {
                             alert('Your AI-powered interview is ready! The AI interviewer will join the Google Meet room shortly after you.');

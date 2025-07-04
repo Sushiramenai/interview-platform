@@ -86,12 +86,20 @@ class SelfHostedInterviewOrchestrator {
       // Initialize services if needed (should be fast if already initialized)
       await this._ensureInitialized();
       
-      // Check if Google credentials are configured
+      // Check if we should use WebRTC mode instead of Google Meet
+      const useWebRTC = !process.env.GOOGLE_CREDENTIALS || process.env.USE_WEBRTC_MODE === 'true';
+      
       let meetUrl;
       let instructions;
-      let needsGoogleSetup = false;
+      let mode = 'self-hosted-bot';
       
-      if (process.env.GOOGLE_CREDENTIALS) {
+      if (useWebRTC) {
+        // Use built-in WebRTC interview room
+        meetUrl = `/interview/${sessionId}`;
+        instructions = `Your AI-powered interview is ready! Click the link to join the interview room. The AI interviewer will start once you're connected.`;
+        mode = 'webrtc';
+        console.log('🎙️ Using WebRTC interview mode for session:', sessionId);
+      } else if (process.env.GOOGLE_CREDENTIALS) {
         try {
           // Try to create real Meet room
           console.log('🔗 Creating Google Meet room...');
@@ -139,8 +147,9 @@ Alternatively, contact your administrator to set up Google integration.`;
         sessionId,
         meetUrl,
         instructions,
-        status: needsGoogleSetup ? 'manual-setup-required' : 'ready',
-        needsGoogleSetup
+        status: useWebRTC ? 'webrtc-ready' : (needsGoogleSetup ? 'manual-setup-required' : 'ready'),
+        needsGoogleSetup,
+        mode
       };
       
       // Do the rest in the background

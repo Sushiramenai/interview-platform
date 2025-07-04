@@ -146,8 +146,9 @@ class InterviewAI {
 
     async generateSmartFollowUp(question, response) {
         try {
+            this._ensureClient();
             const completion = await this.anthropic.messages.create({
-                model: 'claude-3-opus-20240229',
+                model: 'claude-3-haiku-20240307',
                 max_tokens: 150,
                 messages: [{
                     role: 'user',
@@ -163,6 +164,22 @@ class InterviewAI {
         } catch (error) {
             console.error('Error generating follow-up:', error);
             return 'Could you tell me more about that experience?';
+        }
+    }
+    
+    async analyzeResponse(prompt) {
+        try {
+            this._ensureClient();
+            const response = await this.anthropic.messages.create({
+                model: 'claude-3-haiku-20240307',
+                max_tokens: 256,
+                messages: [{ role: 'user', content: prompt }]
+            });
+            
+            return response.content[0].text;
+        } catch (error) {
+            console.error('Error analyzing response:', error);
+            return null;
         }
     }
 }
