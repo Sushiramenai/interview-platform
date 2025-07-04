@@ -32,8 +32,8 @@ class AIInterviewOrchestrator {
         const interview = this.getInterview(interviewId);
         if (!interview) throw new Error('Interview not found');
 
-        // Add candidate response to history if provided
-        if (candidateText) {
+        // Add candidate response to history if provided and not a system interaction
+        if (candidateText && interactionType === 'response') {
             interview.conversationHistory.push({
                 role: 'candidate',
                 content: candidateText,
@@ -50,40 +50,57 @@ class AIInterviewOrchestrator {
                 break;
 
             case 'waiting_for_ready':
+                // When candidate is ready, move to first question
                 response = await this.moveToFirstQuestion(interview);
                 interview.state = 'asking_question';
                 break;
 
             case 'asking_question':
-                // Analyze the candidate's response and determine next action
-                const analysis = await this.analyzeResponse(interview, candidateText);
-                
-                if (analysis.needsClarification) {
-                    response = await this.generateClarification(interview, analysis);
-                    // Stay in same state to get clarification
-                } else if (analysis.requestRepeat) {
-                    response = await this.repeatQuestion(interview);
-                    // Stay in same state
-                } else if (analysis.answerComplete) {
-                    // Save the response
-                    interview.responses.push({
-                        questionIndex: interview.currentQuestionIndex,
-                        question: interview.questions[interview.currentQuestionIndex],
-                        answer: candidateText,
-                        timestamp: new Date().toISOString()
-                    });
-
-                    // Move to next question or end
+                // Special handling for system 'ready' signals (moving between questions)
+                if (interactionType === 'ready') {
+                    // This means we're ready for the next question
                     if (interview.currentQuestionIndex < interview.questions.length - 1) {
-                        response = await this.moveToNextQuestion(interview);
+                        interview.currentQuestionIndex++;
+                        response = await this.askQuestion(interview);
                     } else {
                         response = await this.concludeInterview(interview);
                         interview.state = 'completed';
                     }
+                } else if (candidateText) {
+                    // Analyze the candidate's response and determine next action
+                    const analysis = await this.analyzeResponse(interview, candidateText);
+                    
+                    if (analysis.needsClarification) {
+                        response = await this.generateClarification(interview, analysis);
+                        // Stay in same state to get clarification
+                    } else if (analysis.requestRepeat) {
+                        response = await this.repeatQuestion(interview);
+                        // Stay in same state
+                    } else if (analysis.answerComplete) {
+                        // Save the response
+                        interview.responses.push({
+                            questionIndex: interview.currentQuestionIndex,
+                            question: interview.questions[interview.currentQuestionIndex],
+                            answer: candidateText,
+                            timestamp: new Date().toISOString()
+                        });
+
+                        // Move to next question or end
+                        if (interview.currentQuestionIndex < interview.questions.length - 1) {
+                            response = await this.moveToNextQuestion(interview);
+                        } else {
+                            response = await this.concludeInterview(interview);
+                            interview.state = 'completed';
+                        }
+                    } else {
+                        // Generate a follow-up to get more information
+                        response = await this.generateFollowUp(interview, analysis);
+                        // Stay in same state
+                    }
                 } else {
-                    // Generate a follow-up to get more information
-                    response = await this.generateFollowUp(interview, analysis);
-                    // Stay in same state
+                    // No text provided, this shouldn't happen
+                    console.error('No candidate text provided in asking_question state');
+                    response = await this.repeatQuestion(interview);
                 }
                 break;
 
@@ -200,10 +217,16 @@ Analyze and return a JSON object with:
 
 Intent meanings:
 - normal: Standard answer to the question
-- repeat: Candidate asks to repeat/rephrase the question
-- clarify: Candidate asks for clarification
-- skip: Candidate wants to skip
+- repeat: Candidate asks to repeat/rephrase the question (e.g., "can you repeat that?", "what was the question?")
+- clarify: Candidate asks for clarification (e.g., "what do you mean by...?", "can you clarify?")
+- skip: Candidate wants to skip (e.g., "I don't know", "pass", "skip")
 - offtopic: Response doesn't address the question
+
+IMPORTANT:
+- If the response is a substantive answer (even if brief), mark answerComplete as true
+- Only mark requestRepeat as true if they explicitly ask to repeat
+- Consider any response over 20 words that addresses the topic as answerComplete
+- "I don't know" or "I haven't experienced that" should still be marked as answerComplete (they answered)
 
 Consider:
 - Does the response actually answer the question asked?
@@ -214,7 +237,7 @@ Consider:
         const completion = await this.openai.chat.completions.create({
             model: 'gpt-4o',
             messages: [
-                { role: 'system', content: 'You are analyzing interview responses. Be accurate and consider context.' },
+                { role: 'system', content: 'You are analyzing interview responses. Be accurate and consider context. Err on the side of marking answers as complete unless they explicitly ask for clarification or repetition.' },
                 { role: 'user', content: prompt }
             ],
             response_format: { type: "json_object" },
@@ -346,8 +369,22 @@ Requirements:
         });
 
         return {
-            type: 'question',
+            type: 'transition',
             text: completion.choices[0].message.content,
+            questionIndex: interview.currentQuestionIndex,
+            action: 'move_to_next'
+        };
+    }
+
+    // Ask a question (used when ready-for-question is called)
+    async askQuestion(interview) {
+        const question = interview.questions[interview.currentQuestionIndex];
+        
+        // For questions after the first, just ask the question directly
+        // The transition/acknowledgment already happened
+        return {
+            type: 'question',
+            text: question,
             questionIndex: interview.currentQuestionIndex,
             action: 'wait_for_response'
         };

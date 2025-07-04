@@ -1431,26 +1431,20 @@ io.on('connection', (socket) => {
         try {
             // Process the candidate's response through the orchestrator
             const response = await orchestrator.processInteraction(socket.interviewId, text, 'response');
-            console.log('AI Response:', response);
+            console.log('AI Response:', {
+                type: response.type,
+                action: response.action,
+                text: response.text.substring(0, 50) + '...'
+            });
             
             // Generate audio for the response
             const audio = await voiceService.generateSpeech(response.text);
             
             // Handle different response types
             switch (response.type) {
-                case 'greeting':
-                case 'question':
-                    // These are handled by ready-for-question
-                    socket.emit('ai-acknowledgment', {
-                        text: response.text,
-                        audio: audio,
-                        moveToNext: true,
-                        waitTime: 1500
-                    });
-                    break;
-                    
                 case 'clarification':
                 case 'repeat':
+                    // AI is clarifying or repeating the question
                     socket.emit('ai-followup', {
                         text: response.text,
                         audio: audio,
@@ -1460,6 +1454,7 @@ io.on('connection', (socket) => {
                     break;
                     
                 case 'followup':
+                    // AI wants more information
                     socket.emit('ai-followup', {
                         text: response.text,
                         audio: audio,
@@ -1467,7 +1462,18 @@ io.on('connection', (socket) => {
                     });
                     break;
                     
+                case 'transition':
+                    // AI is acknowledging and moving to next question
+                    socket.emit('ai-acknowledgment', {
+                        text: response.text,
+                        audio: audio,
+                        moveToNext: true,
+                        waitTime: 3000  // Wait 3 seconds before next question
+                    });
+                    break;
+                    
                 case 'conclusion':
+                    // Interview is ending
                     socket.emit('ai-acknowledgment', {
                         text: response.text,
                         audio: audio,
@@ -1478,9 +1484,19 @@ io.on('connection', (socket) => {
                     setTimeout(() => completeInterview(socket), 3000);
                     break;
                     
+                case 'question':
+                    // This shouldn't happen in response to candidate-response
+                    console.warn('Unexpected question type in candidate-response handler');
+                    socket.emit('ai-question', {
+                        questionIndex: response.questionIndex || 0,
+                        question: response.text,
+                        audio
+                    });
+                    break;
+                    
                 default:
-                    // For all other responses (acknowledgments, transitions)
-                    const shouldMoveNext = response.action === 'wait_for_response' ? false : true;
+                    // For any other response types
+                    const shouldMoveNext = response.action === 'move_to_next';
                     socket.emit('ai-acknowledgment', {
                         text: response.text,
                         audio: audio,

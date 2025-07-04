@@ -955,14 +955,16 @@
                     playAudio(data.greetingAudio);
                 }
                 
-                // Don't start listening here - let the audio queue handle it
-                // The ready-for-question will be emitted after greeting audio ends
+                // Mark that we're in the greeting phase
+                currentQuestionIndex = -1;
+                questionRequested = false;
             });
             
             socket.on('ai-question', (data) => {
                 console.log('Question received:', data);
                 currentQuestionIndex = data.questionIndex;
                 updateProgress(currentQuestionIndex + 1);
+                questionRequested = true;  // Mark that we've asked a question
                 
                 displayAIMessage(data.question);
                 addToTranscript('AI Interviewer', data.question);
@@ -971,7 +973,8 @@
                     playAudio(data.audio);
                 }
                 
-                // Don't start listening here - let audio playback handle it
+                // Update status
+                updateStatus('Question ' + (currentQuestionIndex + 1) + ' of ' + totalQuestions);
             });
             
             socket.on('ai-followup', (data) => {
@@ -1225,11 +1228,11 @@
                     // Resume listening after AI finishes speaking
                     setTimeout(() => {
                         startListening();
-                        // Don't automatically request first question after greeting
-                        // Wait for candidate to respond to greeting first
-                        if (currentQuestionIndex === -1 && !questionRequested) {
-                            console.log('Greeting finished, waiting for candidate response...');
-                            // The candidate should acknowledge or respond before we continue
+                        // After greeting, wait for candidate response
+                        // They should acknowledge before we continue
+                        if (currentQuestionIndex === -1) {
+                            console.log('Greeting finished, waiting for candidate to acknowledge...');
+                            updateStatus('Please respond when ready');
                         }
                     }, 500);
                 }
