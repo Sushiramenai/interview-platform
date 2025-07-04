@@ -1,0 +1,11 @@
+[
+  {
+    "uuid": "mock-session-1751563109056",
+    "date": "2025-07-03T17:18:29.056Z",
+    "name": "Sarah Johnson",
+    "role": "Customer Support Specialist",
+    "fit_score": 5,
+    "status": "completed",
+    "summary": "Interview completed. Manual review recommended."
+  }
+]

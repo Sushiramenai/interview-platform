@@ -1,0 +1,19 @@
+{
+  "candidate": {
+    "name": "Sarah Johnson",
+    "email": "sarah.johnson@test.com",
+    "role": "Customer Support Specialist"
+  },
+  "evaluation": {
+    "overallScore": 7.5,
+    "communicationScore": 8.5,
+    "summary": "Strong candidate with excellent communication skills and genuine passion for customer service. Shows good problem-solving abilities and emotional intelligence.",
+    "keyQuotes": [
+      "I've always been passionate about helping people solve problems. I have 3 years of experience in ret...",
+      "Last month, I had a customer who was very upset about a delayed shipment. They were yelling and thre...",
+      "Great customer service is about empathy, clear communication, and problem-solving. It's important to..."
+    ],
+    "nextSteps": "Recommend moving forward with second interview to discuss technical skills and availability."
+  },
+  "timestamp": "2025-07-03T17:18:29.058Z"
+}

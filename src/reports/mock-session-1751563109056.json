@@ -1,0 +1,37 @@
+{
+  "uuid": "mock-session-1751563109056",
+  "name": "Sarah Johnson",
+  "role": "Customer Support Specialist",
+  "date": "2025-07-03T17:18:29.056Z",
+  "responses": [
+    {
+      "question": "Tell me about yourself and why you're interested in customer support.",
+      "response": "I've always been passionate about helping people solve problems. I have 3 years of experience in retail where I handled customer complaints and found that I really enjoyed turning negative experiences into positive ones. I'm interested in this role because it would allow me to help customers on a larger scale and work with technology solutions.",
+      "timestamp": "2025-07-03T17:18:29.056Z"
+    },
+    {
+      "question": "Describe a time when you dealt with a difficult customer. How did you handle it?",
+      "response": "Last month, I had a customer who was very upset about a delayed shipment. They were yelling and threatening to leave bad reviews. I stayed calm, listened to their concerns without interrupting, and acknowledged their frustration. I then looked into their order, found that there was indeed an error on our end, and offered both a refund and expedited shipping for a replacement. The customer calmed down and even thanked me for handling it professionally.",
+      "timestamp": "2025-07-03T17:18:29.056Z"
+    },
+    {
+      "question": "What do you think makes great customer service?",
+      "response": "Great customer service is about empathy, clear communication, and problem-solving. It's important to listen actively, understand the customer's actual needs (not just what they're asking for), and then provide solutions that truly help them. Following up is also crucial - checking if the solution worked shows you care about their experience beyond just closing a ticket.",
+      "timestamp": "2025-07-03T17:18:29.056Z"
+    }
+  ],
+  "video_url": null,
+  "fit_score": 5,
+  "summary": "Interview completed. Manual review recommended.",
+  "quotes": [],
+  "flags": [
+    "Unable to perform automated analysis"
+  ],
+  "strengths": [],
+  "suggested_followups": [
+    "Schedule a follow-up interview for deeper assessment"
+  ],
+  "behavioral_analysis": "Requires manual review",
+  "communication_score": 5,
+  "technical_readiness": "To be determined"
+}
