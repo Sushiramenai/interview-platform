@@ -116,6 +116,7 @@
             
             // Start automated interview
             console.log('🎯 Starting interview with:', { candidateName, email: candidateEmail, role });
+            console.log('🔗 API endpoint:', '/api/interview/automated/start');
             
             try {
                 const response = await fetch('/api/interview/automated/start', {
@@ -133,14 +134,46 @@
                 
                 if (response.ok) {
                     const session = await response.json();
+                    console.log('📦 Session response:', session);
+                    
+                    // Check if Google setup is required
+                    if (session.mode === 'manual-setup-required' || session.needsGoogleSetup) {
+                        // Google credentials not configured
+                        document.querySelector('.container').innerHTML = `
+                            <h1>⚠️ Google Meet Setup Required</h1>
+                            <div class="info-box" style="border-color: #ffc107;">
+                                <h3>Google Integration Not Configured</h3>
+                                <p>${session.instructions || 'Google Meet integration is required for interviews.'}</p>
+                                
+                                <div style="margin-top: 20px; padding: 15px; background: #fff3cd; color: #856404; border-radius: 5px;">
+                                    <strong>Options:</strong>
+                                    <ol>
+                                        <li>Contact your administrator to configure Google credentials</li>
+                                        <li>Create a manual Google Meet room at <a href="https://meet.google.com/new" target="_blank">meet.google.com/new</a></li>
+                                    </ol>
+                                </div>
+                                
+                                <button class="start-btn" style="margin-top: 20px;" onclick="location.reload()">
+                                    Try Again
+                                </button>
+                            </div>
+                        `;
+                        return;
+                    }
                     
                     // Check interview mode
                     if (session.mode === 'self-hosted-bot') {
                         // Self-hosted AI bot interview
-                        alert('Your AI-powered interview is ready! The AI interviewer will join the Google Meet room shortly after you.');
-                        
-                        // Open Google Meet in new tab
-                        window.open(session.meetUrl, '_blank');
+                        if (session.meetUrl && session.meetUrl !== '#') {
+                            alert('Your AI-powered interview is ready! The AI interviewer will join the Google Meet room shortly after you.');
+                            
+                            // Open Google Meet in new tab
+                            window.open(session.meetUrl, '_blank');
+                        } else {
+                            console.error('Invalid Meet URL:', session.meetUrl);
+                            alert('Error: Invalid meeting URL. Please contact support.');
+                            return;
+                        }
                         
                         // Show AI interview instructions
                         document.querySelector('.container').innerHTML = `
@@ -164,6 +197,25 @@
                                 </div>
                             </div>
                         `;
+                    } else if (session.mode === 'pending' || session.status === 'initializing') {
+                        // System is still initializing
+                        document.querySelector('.container').innerHTML = `
+                            <h1>🔄 System Initializing</h1>
+                            <div class="info-box" style="border-color: #17a2b8;">
+                                <h3>Interview System Starting Up</h3>
+                                <p>${session.instructions || 'The interview system is initializing. This usually takes 10-30 seconds.'}</p>
+                                
+                                <div style="margin-top: 20px; padding: 15px; background: #d1ecf1; color: #0c5460; border-radius: 5px;">
+                                    <strong>Please wait a moment and try again.</strong>
+                                    <p>If this persists, contact your administrator.</p>
+                                </div>
+                                
+                                <button class="start-btn" style="margin-top: 20px;" onclick="location.reload()">
+                                    Refresh & Try Again
+                                </button>
+                            </div>
+                        `;
+                        return;
                     } else if (session.mode === 'manual') {
                         // Manual interview without bot
                         alert('Interview ready! You will now join a Google Meet room. An interviewer will conduct your interview using the prepared questions.');
@@ -195,10 +247,16 @@
                         `;
                     } else {
                         // Full automated interview with bot
-                        alert(session.instructions || 'Your interview is ready! You will now be redirected to the Google Meet room.');
-                        
-                        // Open Google Meet in new tab/window
-                        window.open(session.meetUrl, '_blank');
+                        if (session.meetUrl && session.meetUrl !== '#') {
+                            alert(session.instructions || 'Your interview is ready! You will now be redirected to the Google Meet room.');
+                            
+                            // Open Google Meet in new tab/window
+                            window.open(session.meetUrl, '_blank');
+                        } else {
+                            console.error('Invalid Meet URL in default case:', session.meetUrl);
+                            alert('Error: Invalid meeting URL. Please contact support.');
+                            return;
+                        }
                         
                         // Show completion message
                         document.querySelector('.container').innerHTML = `

@@ -1207,14 +1207,27 @@ app.post('/api/interview/automated/start', async (req, res) => {
       const result = await Promise.race([startPromise, timeoutPromise]);
       
       console.log('✅ Interview started:', result.sessionId);
+      console.log('Result details:', result);
       
-      res.json({
-        id: result.sessionId,
-        meetUrl: result.meetUrl,
-        instructions: result.instructions || 'Please join the Google Meet room to begin your interview.',
-        status: 'ready',
-        mode: 'self-hosted-bot'
-      });
+      // Check if Google setup is needed
+      if (result.needsGoogleSetup || result.meetUrl === '#') {
+        res.json({
+          id: result.sessionId,
+          meetUrl: result.meetUrl,
+          instructions: result.instructions,
+          status: result.status || 'manual-setup-required',
+          mode: 'manual-setup-required',
+          needsGoogleSetup: true
+        });
+      } else {
+        res.json({
+          id: result.sessionId,
+          meetUrl: result.meetUrl,
+          instructions: result.instructions || 'Please join the Google Meet room to begin your interview.',
+          status: result.status || 'ready',
+          mode: 'self-hosted-bot'
+        });
+      }
       
     } catch (error) {
       console.error('Interview start failed:', error.message);
