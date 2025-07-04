@@ -18,6 +18,8 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(express.json());
+app.use('/css', express.static(path.join(__dirname, 'public/css')));
+app.use('/images', express.static(path.join(__dirname, 'public/images')));
 app.use(express.static('public'));
 
 // In-memory storage (could be replaced with database)

@@ -22,6 +22,17 @@
             min-height: 100vh;
         }
         
+        /* Header Styles */
+        .platform-header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: var(--space-md) 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.05);
+        }
+        
         /* Hero Section */
         .hero {
             position: relative;
@@ -348,6 +359,18 @@
             <p class="text-muted">Creating interview...</p>
         </div>
     </div>
+    
+    <!-- Header with Logo -->
+    <header class="platform-header">
+        <div class="container">
+            <a href="/" class="logo">
+                <img src="/images/logo.png" alt="SenbirdTea" class="logo-img">
+                <div class="logo-text">
+                    <span>SENBIRD</span><span>TEA</span>
+                </div>
+            </a>
+        </div>
+    </header>
     
     <!-- Hero Section -->
     <section class="hero">

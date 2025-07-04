@@ -16,10 +16,13 @@
   --peach: #FFB380;
   --blush: #F8CECE;
   
-  /* Primary Colors */
-  --primary: #CE2A2B;
-  --primary-dark: #A82224;
-  --primary-light: #E04849;
+  /* Primary Colors - Updated for SenbirdTea */
+  --primary: #D23A2F;
+  --primary-dark: #B82922;
+  --primary-light: #E54A3F;
+  --tea-green: #4CAF50;
+  --tea-green-dark: #388E3C;
+  --tea-green-light: #66BB6A;
   
   /* Neutrals */
   --dark: #323232;
@@ -71,6 +74,40 @@
   --radius-lg: 20px;
   --radius-xl: 32px;
   --radius-full: 9999px;
+}
+
+/* Logo Styles */
+.logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  text-decoration: none;
+  transition: transform var(--transition-base);
+}
+
+.logo:hover {
+  transform: translateY(-2px);
+}
+
+.logo-img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.logo-text {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--dark);
+}
+
+.logo-text span:first-child {
+  color: var(--dark);
+}
+
+.logo-text span:last-child {
+  color: var(--tea-green);
 }
 
 /* Global Reset & Base Styles */

@@ -24,6 +24,29 @@
             overflow: hidden;
         }
         
+        /* Logo in Interview Room */
+        .interview-logo {
+            position: absolute;
+            top: var(--space-lg);
+            left: var(--space-lg);
+            z-index: 10;
+            opacity: 0.8;
+        }
+        
+        .interview-logo .logo-img {
+            width: 40px;
+            height: 40px;
+        }
+        
+        .interview-logo .logo-text {
+            font-size: 1.25rem;
+            color: var(--white);
+        }
+        
+        .interview-logo .logo-text span:last-child {
+            color: var(--tea-green-light);
+        }
+        
         .interview-container {
             display: flex;
             height: 100vh;
@@ -593,6 +616,14 @@
     
     <!-- Main Interview Container -->
     <div class="interview-container" id="interviewContainer" style="display: none;">
+        <!-- Logo -->
+        <a href="/" class="logo interview-logo">
+            <img src="/images/logo.png" alt="SenbirdTea" class="logo-img">
+            <div class="logo-text">
+                <span>SENBIRD</span><span>TEA</span>
+            </div>
+        </a>
+        
         <!-- Main Stage -->
         <div class="main-stage">
             <div class="video-area">

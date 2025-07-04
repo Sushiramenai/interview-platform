@@ -1,0 +1,24 @@
+ADDING YOUR SENBIRDTEA LOGO
+============================
+
+To add your logo to the platform:
+
+1. Save your logo image file as one of these names:
+   - logo.png (recommended)
+   - logo.svg (if you have vector format)
+   - logo.jpg
+
+2. Place the logo file in this directory:
+   /public/images/
+
+3. The logo will automatically appear in:
+   - HR Dashboard header
+   - Interview room (top-left corner)
+   - Results page header
+
+Logo specifications:
+- Recommended size: 200x200px minimum
+- Transparent background preferred (PNG or SVG)
+- The platform will automatically resize it
+
+The logo is already integrated into the design with your brand colors!

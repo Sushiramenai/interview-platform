@@ -22,9 +22,18 @@
             min-height: 100vh;
         }
         
+        /* Header Navigation */
+        .results-header-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--space-lg) 0;
+            margin-bottom: var(--space-lg);
+            animation: fadeIn var(--transition-base);
+        }
+        
         /* Back Navigation */
         .back-nav {
-            padding: var(--space-lg) 0;
             animation: fadeIn var(--transition-base);
         }
         
@@ -574,13 +583,21 @@
 </head>
 <body>
     <div class="container">
-        <!-- Back Navigation -->
-        <nav class="back-nav">
-            <a href="/" class="back-link">
-                <i class="fas fa-arrow-left"></i>
-                Back to Dashboard
+        <!-- Header with Logo and Navigation -->
+        <header class="results-header-nav">
+            <a href="/" class="logo">
+                <img src="/images/logo.png" alt="SenbirdTea" class="logo-img">
+                <div class="logo-text">
+                    <span>SENBIRD</span><span>TEA</span>
+                </div>
             </a>
-        </nav>
+            <nav class="back-nav">
+                <a href="/" class="back-link">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to Dashboard
+                </a>
+            </nav>
+        </header>
         
         <!-- Loading State -->
         <div id="loadingState" class="loading-container">
