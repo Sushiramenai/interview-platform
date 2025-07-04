@@ -828,10 +828,11 @@
                     playAudio(data.audio);
                 }
                 
-                // Get next question
+                // Get next question after wait time
+                const waitTime = data.waitTime || 3000;
                 setTimeout(() => {
                     socket.emit('ready-for-question');
-                }, 3000);
+                }, waitTime);
             });
             
             socket.on('interview-completed', async (data) => {
@@ -1042,6 +1043,8 @@
         function startRecording() {
             if (!localStream) return;
             
+            recordedChunks = []; // Clear any previous chunks
+            
             const options = {
                 mimeType: 'video/webm;codecs=vp8,opus'
             };
@@ -1050,13 +1053,26 @@
                 mediaRecorder = new MediaRecorder(localStream, options);
                 
                 mediaRecorder.ondataavailable = (event) => {
-                    if (event.data.size > 0) {
+                    if (event.data && event.data.size > 0) {
                         recordedChunks.push(event.data);
+                        console.log('Recording chunk added, size:', event.data.size);
                     }
                 };
                 
+                mediaRecorder.onerror = (error) => {
+                    console.error('MediaRecorder error:', error);
+                };
+                
+                mediaRecorder.onstart = () => {
+                    console.log('Recording started successfully');
+                };
+                
+                mediaRecorder.onstop = () => {
+                    console.log('Recording stopped, total chunks:', recordedChunks.length);
+                };
+                
+                // Start recording with chunks every second to ensure continuous capture
                 mediaRecorder.start(1000);
-                console.log('Recording started');
             } catch (error) {
                 console.error('Error starting recording:', error);
             }
@@ -1066,18 +1082,30 @@
             if (mediaRecorder && mediaRecorder.state !== 'inactive') {
                 mediaRecorder.stop();
                 
+                // Wait a bit to ensure all data is collected
                 setTimeout(() => {
-                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
-                    const reader = new FileReader();
-                    
-                    reader.onloadend = () => {
-                        socket.emit('save-recording', {
-                            recording: reader.result
-                        });
-                    };
-                    
-                    reader.readAsDataURL(blob);
-                }, 100);
+                    if (recordedChunks.length > 0) {
+                        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                        console.log('Final recording size:', blob.size, 'bytes');
+                        
+                        const reader = new FileReader();
+                        
+                        reader.onloadend = () => {
+                            console.log('Sending recording to server...');
+                            socket.emit('save-recording', {
+                                recording: reader.result
+                            });
+                        };
+                        
+                        reader.onerror = (error) => {
+                            console.error('Error reading recording:', error);
+                        };
+                        
+                        reader.readAsDataURL(blob);
+                    } else {
+                        console.warn('No recording chunks available');
+                    }
+                }, 500); // Give more time for final chunks
             }
         }
         

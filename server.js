@@ -33,7 +33,15 @@ const templates = new Map();
 let appConfig = {
     openai_api_key: process.env.OPENAI_API_KEY || '',
     elevenlabs_api_key: process.env.ELEVENLABS_API_KEY || '',
-    elevenlabs_voice_id: process.env.ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL'
+    elevenlabs_voice_id: process.env.ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL',
+    interview_guidelines: {
+        pace: 'normal', // 'slow', 'normal', 'fast'
+        style: 'professional', // 'casual', 'professional', 'friendly'
+        followUpFrequency: 0.3, // 0-1 probability of follow-up questions
+        waitTime: 2000, // ms to wait between questions
+        maxFollowUps: 2, // max follow-ups per question
+        customInstructions: '' // custom AI behavior instructions
+    }
 };
 
 // Load config from file if exists
@@ -57,8 +65,24 @@ async function saveConfig() {
     }
 }
 
-// Initialize config on startup
+// Initialize config and ensure data directories exist on startup
 loadConfig();
+
+// Ensure data directories exist
+async function ensureDataDirectories() {
+    const dirs = [
+        path.join(__dirname, 'data'),
+        path.join(__dirname, 'data/recordings'),
+        path.join(__dirname, 'data/results'),
+        path.join(__dirname, 'data/templates')
+    ];
+    
+    for (const dir of dirs) {
+        await fs.mkdir(dir, { recursive: true }).catch(() => {});
+    }
+}
+
+ensureDataDirectories();
 
 // ===== SIMPLIFIED SERVICES =====
 
@@ -108,14 +132,30 @@ class AIInterviewer {
                     const jobContext = jobDescription ? 
                         `\n\nJob Description Context:\n${jobDescription.substring(0, 500)}...` : '';
                     
+                    // Build system prompt based on guidelines
+                    let systemPrompt = `You are a ${appConfig.interview_guidelines.style} interviewer. The candidate just answered a question.`;
+                    
+                    if (appConfig.interview_guidelines.style === 'professional') {
+                        systemPrompt += ' Maintain a formal, structured approach.';
+                    } else if (appConfig.interview_guidelines.style === 'casual') {
+                        systemPrompt += ' Keep a relaxed, conversational tone.';
+                    } else if (appConfig.interview_guidelines.style === 'friendly') {
+                        systemPrompt += ' Be warm, encouraging, and supportive.';
+                    }
+                    
+                    systemPrompt += ` Acknowledge their response briefly and naturally transition to the next question. 
+                    Keep it conversational and empathetic. Maximum 2 sentences for the acknowledgment.${jobContext}`;
+                    
+                    if (appConfig.interview_guidelines.customInstructions) {
+                        systemPrompt += `\n\nAdditional instructions: ${appConfig.interview_guidelines.customInstructions}`;
+                    }
+                    
                     const response = await openai.chat.completions.create({
                         model: 'gpt-4',
                         messages: [
                             {
                                 role: 'system',
-                                content: `You are a warm, professional interviewer. The candidate just answered a question. 
-                                Acknowledge their response briefly and naturally transition to the next question. 
-                                Keep it conversational and empathetic. Maximum 2 sentences for the acknowledgment.${jobContext}`
+                                content: systemPrompt
                             },
                             {
                                 role: 'user',
@@ -429,12 +469,13 @@ app.get('/results/:id', (req, res) => {
 
 // Save API keys and settings
 app.post('/api/settings/save', async (req, res) => {
-    const { openai_api_key, elevenlabs_api_key, elevenlabs_voice_id } = req.body;
+    const { openai_api_key, elevenlabs_api_key, elevenlabs_voice_id, interview_guidelines } = req.body;
     
     // Update config
     if (openai_api_key !== undefined) appConfig.openai_api_key = openai_api_key;
     if (elevenlabs_api_key !== undefined) appConfig.elevenlabs_api_key = elevenlabs_api_key;
     if (elevenlabs_voice_id !== undefined) appConfig.elevenlabs_voice_id = elevenlabs_voice_id;
+    if (interview_guidelines !== undefined) appConfig.interview_guidelines = { ...appConfig.interview_guidelines, ...interview_guidelines };
     
     // Save to file
     await saveConfig();
@@ -442,6 +483,14 @@ app.post('/api/settings/save', async (req, res) => {
     res.json({ 
         success: true,
         message: 'Settings saved successfully'
+    });
+});
+
+// Get interview guidelines
+app.get('/api/settings/guidelines', (req, res) => {
+    res.json({
+        success: true,
+        guidelines: appConfig.interview_guidelines
     });
 });
 
@@ -553,6 +602,81 @@ app.post('/api/test-connection', async (req, res) => {
 
 // ===== TEMPLATE ENDPOINTS =====
 
+// Generate job description suggestions using AI
+app.post('/api/generate-suggestions', async (req, res) => {
+    const { position, department, experienceLevel } = req.body;
+    
+    try {
+        const openai = aiInterviewer.getOpenAIClient();
+        if (!openai) {
+            return res.status(400).json({ error: 'OpenAI API key not configured' });
+        }
+        
+        const prompt = `Generate a comprehensive job description for a ${position} position${department ? ` in the ${department} department` : ''}${experienceLevel ? ` requiring ${experienceLevel} experience` : ''}.
+
+Include:
+1. A compelling overview (2-3 sentences)
+2. Key responsibilities (5-7 bullet points)
+3. Required qualifications (4-6 bullet points)
+4. Nice-to-have skills (3-4 bullet points)
+5. What we offer (3-4 bullet points)
+
+Format it professionally and make it engaging to attract top talent.`;
+
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4',
+            messages: [
+                {
+                    role: 'system',
+                    content: 'You are an expert HR professional creating compelling job descriptions. Write in a professional yet engaging tone.'
+                },
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ],
+            max_tokens: 800,
+            temperature: 0.7
+        });
+        
+        const jobDescription = response.choices[0].message.content;
+        
+        // Also generate suggested interview questions
+        const questionsPrompt = `Based on this ${position} role${department ? ` in ${department}` : ''}${experienceLevel ? ` (${experienceLevel})` : ''}, suggest 6-8 excellent behavioral interview questions that will help assess the candidate's fit for the role. Focus on questions that reveal experience, problem-solving ability, and cultural fit.`;
+        
+        const questionsResponse = await openai.chat.completions.create({
+            model: 'gpt-4',
+            messages: [
+                {
+                    role: 'system',
+                    content: 'You are an expert interviewer. Create insightful behavioral interview questions.'
+                },
+                {
+                    role: 'user',
+                    content: questionsPrompt
+                }
+            ],
+            max_tokens: 400,
+            temperature: 0.7
+        });
+        
+        const suggestedQuestions = questionsResponse.choices[0].message.content
+            .split('\n')
+            .filter(line => line.trim() && /^\d+\./.test(line.trim()))
+            .map(line => line.replace(/^\d+\.\s*/, '').trim());
+        
+        res.json({
+            success: true,
+            jobDescription,
+            suggestedQuestions
+        });
+        
+    } catch (error) {
+        console.error('Error generating suggestions:', error);
+        res.status(500).json({ error: 'Failed to generate suggestions' });
+    }
+});
+
 // Get all templates
 app.get('/api/templates', async (req, res) => {
     try {
@@ -575,13 +699,15 @@ app.get('/api/templates', async (req, res) => {
 // Create new template
 app.post('/api/templates', async (req, res) => {
     try {
-        const { name, role, questions, description } = req.body;
+        const { position, department, level, duration, jobDescription, questions } = req.body;
         const template = {
             id: uuidv4(),
-            name,
-            role,
+            position,
+            department,
+            level,
+            duration: duration || 30,
+            jobDescription,
             questions,
-            description,
             createdAt: new Date().toISOString()
         };
         
@@ -590,21 +716,22 @@ app.post('/api/templates', async (req, res) => {
         let templates = [];
         
         try {
+            await fs.mkdir(path.dirname(templatesPath), { recursive: true });
             const data = await fs.readFile(templatesPath, 'utf8');
             templates = JSON.parse(data);
         } catch (error) {
-            // File doesn't exist
+            // File doesn't exist, will create new one
         }
         
         // Add new template
         templates.push(template);
         
         // Save to file
-        await fs.mkdir(path.dirname(templatesPath), { recursive: true });
         await fs.writeFile(templatesPath, JSON.stringify(templates, null, 2));
         
         res.json({ success: true, template });
     } catch (error) {
+        console.error('Error creating template:', error);
         res.status(500).json({ error: 'Failed to create template' });
     }
 });
@@ -613,7 +740,7 @@ app.post('/api/templates', async (req, res) => {
 app.put('/api/templates/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, role, questions, description } = req.body;
+        const { position, department, level, duration, jobDescription, questions } = req.body;
         
         // Load templates
         const templatesPath = path.join(__dirname, 'data/templates.json');
@@ -634,10 +761,12 @@ app.put('/api/templates/:id', async (req, res) => {
         
         templates[index] = {
             ...templates[index],
-            name,
-            role,
+            position,
+            department,
+            level,
+            duration: duration || 30,
+            jobDescription,
             questions,
-            description,
             updatedAt: new Date().toISOString()
         };
         
@@ -646,6 +775,7 @@ app.put('/api/templates/:id', async (req, res) => {
         
         res.json({ success: true, template: templates[index] });
     } catch (error) {
+        console.error('Error updating template:', error);
         res.status(500).json({ error: 'Failed to update template' });
     }
 });
@@ -801,7 +931,7 @@ io.on('connection', (socket) => {
             text
         );
         
-        if (followUp && Math.random() < 0.3) { // 30% chance of follow-up
+        if (followUp && Math.random() < appConfig.interview_guidelines.followUpFrequency) {
             const followUpAudio = await voiceService.generateSpeech(followUp);
             socket.emit('ai-followup', {
                 text: followUp,
@@ -829,7 +959,8 @@ io.on('connection', (socket) => {
             
             socket.emit('ai-acknowledgment', {
                 text: ack,
-                audio: ackAudio
+                audio: ackAudio,
+                waitTime: appConfig.interview_guidelines.waitTime // Add wait time before next question
             });
         }
     });
