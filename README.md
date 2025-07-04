@@ -1,166 +1,164 @@
-# AI-Powered Video Interview Platform
+# AI Interview Platform - Simple & Powerful
 
-[![Run on Replit](https://replit.com/badge/github/Sushiramenai/interview-platform)](https://replit.com/new/github/Sushiramenai/interview-platform)
+A streamlined AI-powered interview platform that conducts professional job interviews using Claude AI and ElevenLabs voice synthesis. No external meeting platforms needed - everything runs in your browser\!
 
-A fully automated interview platform where an AI bot joins Google Meet and conducts video interviews with voice synthesis. Perfect for HR teams with limited technical experience.
+## 🚀 Quick Start on Replit
 
-**🎉 Now Fully Replit-Ready!** No manual configuration needed - the platform automatically detects and optimizes for Replit deployment.
+### 1. Fork on Replit
+[\![Run on Replit](https://replit.com/badge/github/Sushiramenai/interview-platform)](https://replit.com/github/Sushiramenai/interview-platform)
 
-## 🌟 Key Features
+### 2. Setup (One Time Only)
+Once your Repl is ready, click the Shell tab and run:
+```bash
+npm install
+node simple-setup.js
+```
 
-- **AI Bot Interviewer**: Self-hosted bot joins Google Meet and speaks questions
-- **Voice Synthesis**: Natural voice using ElevenLabs
-- **One-Click Setup**: Deploy on Replit in minutes
-- **HR-Friendly**: No technical knowledge required
-- **Cost-Effective**: ~$0.11 per interview (vs $1000s/month for alternatives)
-- **Multiple Modes**: AI bot, manual, or premium recording options
+You'll be asked for 2 API keys:
+- **Claude API Key** (Required): Get from [console.anthropic.com](https://console.anthropic.com/)
+- **ElevenLabs API Key** (Optional): Get from [elevenlabs.io](https://elevenlabs.io/)
 
-## 🚀 Quick Start for HR Teams
+### 3. Start the Platform
+Click the green "Run" button or:
+```bash
+npm start
+```
 
-### Deploy in 3 Minutes:
+Your interview platform is now live at your Replit URL\!
 
-1. **Click Deploy Button**
-   [![Run on Replit](https://replit.com/badge/github/Sushiramenai/interview-platform)](https://replit.com/new/github/Sushiramenai/interview-platform)
+## 💼 How It Works
 
-2. **Sign up/Login to Replit**
-   - Use Google or email
-   - Free account works!
+### For HR/Recruiters:
 
-3. **Click the Green "Run" Button**
-   - Wait 2-3 minutes for setup
-   - Your platform is ready!
+1. **Create Interview**
+   - Open your Replit app URL
+   - Fill in candidate name, email, and role
+   - Click "Create Interview Link"
 
-### Access Your Platform:
-- **Admin Login**: `your-replit-url/login`
-  - Username: `Admin`
-  - Password: `admin123`
-
-### First-Time Setup (5 minutes):
-1. Login to admin panel
-2. Go to "API Configuration"
-3. Add 3 API keys (we'll show you how)
-4. Start interviewing!
-
-## 💰 Cost Comparison
-
-| Service | Monthly Cost | Per Interview |
-|---------|-------------|---------------|
-| Recall.ai | $500-2000 | ~$10-20 |
-| HireVue | $1000+ | ~$15-25 |
-| **Our Platform** | **$0-7** | **~$0.11** |
-
-### What You Pay:
-- **Hosting**: $0 (Replit free) or $7 (Replit Hacker)
-- **APIs**: ~$0.11 per interview
-- **Total**: Under $50/month for hundreds of interviews!
-
-## 📋 Required API Keys (One-Time Setup)
-
-### 1. Claude AI ($0)
-- Go to: https://console.anthropic.com/
-- Sign up → Create API key
-- Free tier available
-
-### 2. Google Service Account ($0)
-- See our [Google Setup Guide](VIDEO_INTERVIEW_FLOW.md#getting-google-api)
-- Enables Google Meet creation
-
-### 3. ElevenLabs ($0)
-- Go to: https://elevenlabs.io/
-- Sign up → Get API key
-- Free tier = 10,000 characters/month
-
-## 👥 How HR Uses It
-
-### Daily Workflow:
-1. **Create Role**
-   - Click "Role Templates"
-   - Add questions for the position
-   - Save
-
-2. **Share Link**
-   - Copy interview URL
-   - Send to candidates
+2. **Share with Candidate**
+   - Copy the generated link
+   - Send via email or message
+   - No downloads or installs needed
 
 3. **Review Results**
-   - Check "Candidate Results"
-   - See scores and evaluations
+   - Return to dashboard anytime
+   - See all interviews and their status
+   - Click "View Results" for completed interviews
 
-### What Candidates Experience:
-1. Click interview link
-2. Enter name/email
-3. Join Google Meet
-4. AI bot joins and asks questions
-5. Complete interview
-6. Done!
+### For Candidates:
 
-## 🤖 How the AI Bot Works
+1. Click the interview link
+2. Allow camera/microphone when prompted
+3. Meet your AI interviewer
+4. Answer questions naturally
+5. Interview completes automatically
 
-1. **Candidate joins Google Meet**
-2. **AI bot launches** (10 seconds later)
-3. **Bot introduces itself** with voice
-4. **Asks each question** using ElevenLabs
-5. **Waits for responses** (30-45 seconds)
-6. **Concludes interview** professionally
-7. **Auto-evaluates** and saves results
+## 🎯 Features
 
-## 🎯 3 Interview Modes
+- **🤖 AI Interviewer**: Claude AI asks intelligent, role-specific questions
+- **🎙️ Natural Voice**: ElevenLabs makes the AI sound human
+- **📹 Video Recording**: Full interview recorded automatically
+- **📝 Live Transcription**: Real-time speech-to-text
+- **📊 Automatic Scoring**: AI evaluates candidates (1-10 scale)
+- **📄 Detailed Reports**: Transcripts, strengths, improvements
+- **🔒 Privacy First**: Everything stays on your server
 
-### 1. **Self-Hosted AI Bot** (Recommended)
-- Requirements: Claude + Google + ElevenLabs
-- AI bot joins Meet and speaks
-- No recording
-- Cost: ~$0.11/interview
+## 📋 What You Get
 
-### 2. **Manual Mode** (Fallback)
-- Requirements: Claude + Google only
-- Human conducts with interview guide
-- No bot needed
-- Cost: ~$0.01/interview
+### Interview Dashboard
+- Create unlimited interviews
+- Track all candidates
+- Simple, clean interface
 
-## ❓ Common HR Questions
+### AI-Powered Interviews
+- 6 intelligent questions per interview
+- Natural conversation flow
+- Professional yet friendly tone
 
-**Q: Do I need technical knowledge?**
-A: No! Everything is click-based. If you can use email, you can use this.
+### Comprehensive Results
+- Overall score (1-10)
+- Performance summary
+- Key strengths identified
+- Areas for improvement
+- Full transcript
+- Video recording
 
-**Q: What if the bot doesn't work?**
-A: System auto-switches to manual mode with interview guide.
+## 💰 Costs
 
-**Q: Is it really that cheap?**
-A: Yes! You only pay for API usage, about 11 cents per interview.
+- **Claude AI**: ~$0.25 per interview
+- **ElevenLabs**: Free tier includes 10 interviews/month
+- **Total**: Less than $1 per interview
 
-**Q: Can we customize questions?**
-A: Yes! Unlimited roles and questions through the dashboard.
+## 🛠️ Customization
 
-**Q: Is it secure?**
-A: Yes! Each interview has unique links, one-time use only.
+### Change Interview Questions
+Edit the questions array in `server.js`:
+```javascript
+this.questions = [
+    "Your custom question here",
+    "Another question",
+    // ...
+];
+```
 
-## 📚 Documentation
+### Adjust AI Voice
+Change the voice in `server.js`:
+```javascript
+this.voiceId = 'EXAVITQu4vr4xnSDxMaL'; // Different voice ID
+```
 
-- **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Step-by-step Replit setup
-- **[AI Bot System](AI_BOT_SYSTEM.md)** - How the bot works
-- **[Google Setup](VIDEO_INTERVIEW_FLOW.md)** - Getting Google credentials
-- **[Integration Status](INTEGRATION_STATUS.md)** - Current features
+## 🔧 Troubleshooting
 
-## 🆘 Need Help?
+### "API key not configured"
+Run `node simple-setup.js` again and enter your keys.
 
-### Quick Fixes:
-- **Can't login?** Check caps lock (Username: Admin)
-- **Bot not joining?** Upgrade to Replit Hacker plan
-- **API errors?** Double-check your keys in settings
-- **"Error saving API keys"?** See [FIXES_APPLIED.md](FIXES_APPLIED.md)
+### "Camera/Microphone access denied"
+Candidates need to allow permissions in their browser.
 
-### Support:
-- Create an [Issue](https://github.com/Sushiramenai/interview-platform/issues)
-- Check [Deployment Guide](DEPLOYMENT_GUIDE.md)
-- Review [Documentation](#-documentation)
+### "No audio from AI"
+Make sure you added an ElevenLabs API key during setup.
 
-## 🎉 Ready to Start?
+### Port already in use
+Change the PORT in your Replit environment variables.
 
-1. Click the Replit button at the top
-2. Follow our [5-minute setup](DEPLOYMENT_GUIDE.md)
-3. Start interviewing today!
+## 📁 Project Structure
+
+```
+/
+├── server.js              # Main application server
+├── simple-setup.js        # Setup wizard
+├── package.json          # Dependencies
+├── .env                  # API keys (created by setup)
+├── /views/
+│   ├── hr-dashboard.html # HR interface
+│   ├── interview.html    # Interview room
+│   └── results.html      # Results viewer
+├── /public/              # Static files (auto-created)
+└── /data/               # Interview data (auto-created)
+    ├── /recordings/     # Video recordings
+    └── /results/        # Interview results
+```
+
+## 🌟 Why This Platform?
+
+- **Simple**: No complex setup or external services
+- **Fast**: Create interviews in seconds
+- **Professional**: AI conducts consistent, unbiased interviews
+- **Affordable**: Fraction of the cost of traditional solutions
+- **Reliable**: Everything runs on your own server
+- **Scalable**: Handle unlimited concurrent interviews
+
+## 🤝 Support
+
+- **Setup Issues**: Make sure you ran `node simple-setup.js`
+- **Browser Issues**: Use Chrome for best results
+- **API Issues**: Verify your keys are correct and have credits
+
+## 📜 License
+
+MIT License - Use freely for your recruiting needs\!
 
 ---
 
-**Built to make hiring affordable and accessible for everyone!** 🚀
+Built with ❤️ to make hiring easier, faster, and better.
+EOF < /dev/null

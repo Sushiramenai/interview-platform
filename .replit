@@ -1,17 +1,13 @@
 run = "npm start"
-entrypoint = "index.js"
-
-[env]
-REPL_SLUG = "$REPL_SLUG"
-REPL_OWNER = "$REPL_OWNER"
-
-[[ports]]
-localPort = 3000
-externalPort = 80
+entrypoint = "server.js"
 
 [nix]
 channel = "stable-22_11"
 
 [deployment]
-run = ["node", "index.js"]
-deploymentTarget = "cloudrun"
+run = ["node", "server.js"]
+
+[[ports]]
+localPort = 3000
+externalPort = 80
+EOF < /dev/null

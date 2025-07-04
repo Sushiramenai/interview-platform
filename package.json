@@ -1,36 +1,31 @@
 {
-  "name": "interview-platform",
-  "version": "1.0.0",
-  "description": "Automated video interview platform with Claude AI",
-  "main": "index.js",
+  "name": "ai-interview-platform-simple",
+  "version": "2.0.0",
+  "description": "Simple AI-powered interview platform with built-in video",
+  "main": "server.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js"
+    "start": "node server.js",
+    "setup": "node simple-setup.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.0",
-    "@google-cloud/storage": "^7.7.0",
-    "axios": "^1.10.0",
-    "bcryptjs": "^2.4.3",
-    "cookie-parser": "^1.4.6",
-    "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "express-session": "^1.17.3",
-    "googleapis": "^128.0.0",
-    "jsonwebtoken": "^9.0.2",
-    "marked": "^11.1.1",
-    "node-fetch": "^3.3.2",
-    "puppeteer": "^24.11.2",
-    "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2",
     "socket.io": "^4.7.2",
     "uuid": "^9.0.1"
   },
-  "devDependencies": {
-    "nodemon": "^3.0.2"
-  },
   "engines": {
     "node": ">=16.0.0"
-  }
+  },
+  "keywords": [
+    "interview",
+    "ai",
+    "hr",
+    "recruitment",
+    "video",
+    "claude",
+    "elevenlabs"
+  ],
+  "author": "AI Interview Platform",
+  "license": "MIT"
 }
