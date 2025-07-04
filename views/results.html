@@ -255,6 +255,37 @@
             color: var(--info);
         }
         
+        .card-icon.error {
+            background: rgba(206, 42, 43, 0.1);
+            color: var(--error);
+        }
+        
+        .result-card.error::before {
+            background: linear-gradient(90deg, var(--error) 0%, var(--crimson) 100%);
+        }
+        
+        .result-card.info::before {
+            background: linear-gradient(90deg, var(--info) 0%, var(--sage) 100%);
+        }
+        
+        /* Recommendation Styles */
+        .recommendation-content {
+            text-align: center;
+        }
+        
+        .recommendation-decision {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: var(--space-md);
+            color: var(--dark);
+        }
+        
+        .recommendation-reasoning {
+            font-size: 1.125rem;
+            line-height: 1.6;
+            color: var(--dark-70);
+        }
+        
         .card-title {
             font-family: var(--font-display);
             font-size: 1.5rem;
@@ -652,9 +683,43 @@
             }
         }
         
+        // Helper functions for recommendation display
+        function getRecommendationClass(decision) {
+            const classes = {
+                'strong_yes': 'success',
+                'yes': 'success',
+                'maybe': 'warning',
+                'no': 'error'
+            };
+            return classes[decision] || 'info';
+        }
+        
+        function getRecommendationIcon(decision) {
+            const icons = {
+                'strong_yes': 'check-circle',
+                'yes': 'check',
+                'maybe': 'question-circle',
+                'no': 'times-circle'
+            };
+            return icons[decision] || 'info-circle';
+        }
+        
+        function formatRecommendation(decision) {
+            const labels = {
+                'strong_yes': 'Strongly Recommend',
+                'yes': 'Recommend',
+                'maybe': 'Consider with Reservations',
+                'no': 'Do Not Recommend'
+            };
+            return labels[decision] || 'No Recommendation';
+        }
+        
         function displayResults(data) {
             document.getElementById('loadingState').style.display = 'none';
             document.getElementById('resultsContent').style.display = 'block';
+            
+            // Store data globally for download functions
+            window.interviewData = data;
             
             const content = document.getElementById('resultsContent');
             
@@ -754,20 +819,72 @@
                         </ul>
                     </div>
                     
-                    <!-- Improvements -->
+                    <!-- Weaknesses -->
                     <div class="result-card warning">
                         <div class="card-header">
                             <div class="card-icon warning">
                                 <i class="fas fa-lightbulb"></i>
                             </div>
-                            <h2 class="card-title">Growth Areas</h2>
+                            <h2 class="card-title">Areas for Improvement</h2>
                         </div>
                         <ul class="styled-list improvements-list">
-                            ${data.evaluation.improvements.map(improvement => 
-                                `<li>${improvement}</li>`
+                            ${(data.evaluation.weaknesses || data.evaluation.improvements || []).map(weakness => 
+                                `<li>${weakness}</li>`
                             ).join('')}
                         </ul>
                     </div>
+                    
+                    <!-- Red Flags -->
+                    ${data.evaluation.redFlags && data.evaluation.redFlags.length > 0 ? `
+                    <div class="result-card error">
+                        <div class="card-header">
+                            <div class="card-icon error">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <h2 class="card-title">Red Flags</h2>
+                        </div>
+                        <ul class="styled-list red-flags-list">
+                            ${data.evaluation.redFlags.map(flag => 
+                                `<li>${flag}</li>`
+                            ).join('')}
+                        </ul>
+                    </div>
+                    ` : ''}
+                    
+                    <!-- Hiring Recommendation -->
+                    <div class="result-card ${getRecommendationClass(data.evaluation.recommendation?.decision)}">
+                        <div class="card-header">
+                            <div class="card-icon ${getRecommendationClass(data.evaluation.recommendation?.decision)}">
+                                <i class="fas fa-${getRecommendationIcon(data.evaluation.recommendation?.decision)}"></i>
+                            </div>
+                            <h2 class="card-title">Hiring Recommendation</h2>
+                        </div>
+                        <div class="recommendation-content">
+                            <div class="recommendation-decision">
+                                ${formatRecommendation(data.evaluation.recommendation?.decision)}
+                            </div>
+                            <p class="recommendation-reasoning">
+                                ${data.evaluation.recommendation?.reasoning || 'No detailed reasoning provided.'}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Follow-up Areas -->
+                    ${data.evaluation.followUpAreas && data.evaluation.followUpAreas.length > 0 ? `
+                    <div class="result-card info">
+                        <div class="card-header">
+                            <div class="card-icon info">
+                                <i class="fas fa-clipboard-list"></i>
+                            </div>
+                            <h2 class="card-title">Topics for Next Round</h2>
+                        </div>
+                        <ul class="styled-list follow-up-list">
+                            ${data.evaluation.followUpAreas.map(area => 
+                                `<li>${area}</li>`
+                            ).join('')}
+                        </ul>
+                    </div>
+                    ` : ''}
                 </div>
                 
                 <!-- Transcript Section -->

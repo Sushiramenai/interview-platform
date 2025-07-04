@@ -35,12 +35,58 @@ let appConfig = {
     elevenlabs_api_key: process.env.ELEVENLABS_API_KEY || '',
     elevenlabs_voice_id: process.env.ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL',
     interview_guidelines: {
+        // Conversation Flow
         pace: 'normal', // 'slow', 'normal', 'fast'
-        style: 'professional', // 'casual', 'professional', 'friendly'
-        followUpFrequency: 0.3, // 0-1 probability of follow-up questions
+        style: 'professional', // 'casual', 'professional', 'friendly', 'empathetic'
         waitTime: 2000, // ms to wait between questions
+        
+        // Follow-up Behavior
+        followUpFrequency: 0.3, // 0-1 probability of follow-up questions
         maxFollowUps: 2, // max follow-ups per question
-        customInstructions: '' // custom AI behavior instructions
+        followUpDepth: 'balanced', // 'surface', 'balanced', 'deep'
+        
+        // Natural Conversation Settings
+        useFillers: true, // Use "I see", "That's interesting", etc.
+        acknowledgements: true, // Acknowledge answers before moving on
+        personalizedResponses: true, // Reference previous answers
+        
+        // Interview Dynamics
+        warmupQuestions: 1, // Number of easy warmup questions
+        difficulty_progression: 'gradual', // 'flat', 'gradual', 'steep'
+        encouragement_level: 'moderate', // 'none', 'minimal', 'moderate', 'high'
+        
+        // Probing Techniques
+        clarificationStyle: 'gentle', // 'direct', 'gentle', 'persistent'
+        silenceHandling: 'patient', // 'immediate', 'patient', 'very_patient'
+        redirectTechnique: 'subtle', // 'direct', 'subtle', 'none'
+        
+        // Custom Instructions
+        customInstructions: '',
+        personality_traits: [] // e.g., ['warm', 'analytical', 'curious']
+    },
+    
+    // AI Behavior Templates
+    ai_templates: {
+        'technical_senior': {
+            name: 'Senior Technical Interview',
+            description: 'For experienced technical candidates',
+            settings: {
+                style: 'professional',
+                followUpDepth: 'deep',
+                difficulty_progression: 'steep',
+                clarificationStyle: 'persistent'
+            }
+        },
+        'entry_friendly': {
+            name: 'Entry Level Friendly',
+            description: 'Encouraging for junior candidates',
+            settings: {
+                style: 'friendly',
+                warmupQuestions: 2,
+                encouragement_level: 'high',
+                difficulty_progression: 'gradual'
+            }
+        }
     }
 };
 
@@ -133,21 +179,51 @@ class AIInterviewer {
                         `\n\nJob Description Context:\n${jobDescription.substring(0, 500)}...` : '';
                     
                     // Build system prompt based on guidelines
-                    let systemPrompt = `You are a ${appConfig.interview_guidelines.style} interviewer. The candidate just answered a question.`;
+                    const guidelines = appConfig.interview_guidelines;
+                    let systemPrompt = `You are a ${guidelines.style} interviewer conducting a real interview. `;
                     
-                    if (appConfig.interview_guidelines.style === 'professional') {
-                        systemPrompt += ' Maintain a formal, structured approach.';
-                    } else if (appConfig.interview_guidelines.style === 'casual') {
-                        systemPrompt += ' Keep a relaxed, conversational tone.';
-                    } else if (appConfig.interview_guidelines.style === 'friendly') {
-                        systemPrompt += ' Be warm, encouraging, and supportive.';
+                    // Style-specific instructions
+                    if (guidelines.style === 'professional') {
+                        systemPrompt += 'Maintain a formal yet approachable demeanor. ';
+                    } else if (guidelines.style === 'casual') {
+                        systemPrompt += 'Keep a relaxed, conversational tone like a friendly colleague. ';
+                    } else if (guidelines.style === 'friendly') {
+                        systemPrompt += 'Be warm, encouraging, and create a comfortable atmosphere. ';
+                    } else if (guidelines.style === 'empathetic') {
+                        systemPrompt += 'Show genuine interest and understanding in their experiences. ';
                     }
                     
-                    systemPrompt += ` Acknowledge their response briefly and naturally transition to the next question. 
-                    Keep it conversational and empathetic. Maximum 2 sentences for the acknowledgment.${jobContext}`;
+                    // Natural conversation elements
+                    if (guidelines.useFillers) {
+                        systemPrompt += 'Use natural fillers like "I see", "That\'s interesting", "Mm-hmm" occasionally. ';
+                    }
                     
-                    if (appConfig.interview_guidelines.customInstructions) {
-                        systemPrompt += `\n\nAdditional instructions: ${appConfig.interview_guidelines.customInstructions}`;
+                    if (guidelines.acknowledgements) {
+                        systemPrompt += 'Always acknowledge their answer before moving on. ';
+                    }
+                    
+                    if (guidelines.personalizedResponses && history.length > 0) {
+                        systemPrompt += 'Reference something they mentioned earlier when relevant. ';
+                    }
+                    
+                    // Encouragement settings
+                    if (guidelines.encouragement_level === 'high') {
+                        systemPrompt += 'Be very encouraging and positive about their responses. ';
+                    } else if (guidelines.encouragement_level === 'moderate') {
+                        systemPrompt += 'Offer moderate encouragement when appropriate. ';
+                    }
+                    
+                    // Personality traits
+                    if (guidelines.personality_traits && guidelines.personality_traits.length > 0) {
+                        systemPrompt += `Embody these traits: ${guidelines.personality_traits.join(', ')}. `;
+                    }
+                    
+                    systemPrompt += `\n\nAcknowledge their response naturally and transition to the next question. 
+                    Make it feel like a real conversation, not a scripted interview. 
+                    Keep acknowledgment to 1-3 sentences.${jobContext}`;
+                    
+                    if (guidelines.customInstructions) {
+                        systemPrompt += `\n\nAdditional instructions: ${guidelines.customInstructions}`;
                     }
                     
                     const response = await openai.chat.completions.create({
@@ -159,11 +235,11 @@ class AIInterviewer {
                             },
                             {
                                 role: 'user',
-                                content: `Previous question: ${questionSet[index-1]}\n\nCandidate's response: ${previousResponse}\n\nNext question to ask: ${questionSet[index]}`
+                                content: `Previous question: ${questionSet[index-1]}\n\nCandidate's response: ${previousResponse}\n\nNext question to ask: ${questionSet[index]}\n\nProvide a natural transition that acknowledges their answer and leads into the next question.`
                             }
                         ],
-                        max_tokens: 150,
-                        temperature: 0.7
+                        max_tokens: 200,
+                        temperature: 0.8
                     });
                     
                     return response.choices[0].message.content;
@@ -177,25 +253,63 @@ class AIInterviewer {
         return null;
     }
     
-    async generateFollowUp(interviewId, question, response) {
+    async generateFollowUp(interviewId, question, response, followUpCount = 0) {
         const openai = this.getOpenAIClient();
         if (!openai) return null;
         
+        const guidelines = appConfig.interview_guidelines;
+        
+        // Check if we should ask a follow-up
+        if (followUpCount >= guidelines.maxFollowUps) {
+            return null;
+        }
+        
+        // Adjust probability based on response length and depth settings
+        let shouldFollowUp = Math.random() < guidelines.followUpFrequency;
+        
+        if (response.length < 50 && guidelines.followUpDepth === 'deep') {
+            shouldFollowUp = true; // Always follow up on very short answers
+        } else if (response.length > 300 && guidelines.followUpDepth === 'surface') {
+            shouldFollowUp = false; // Don't follow up on detailed answers
+        }
+        
+        if (!shouldFollowUp) {
+            return null;
+        }
+        
         try {
             const history = this.conversationHistory.get(interviewId) || [];
+            
+            // Build follow-up prompt based on guidelines
+            let systemPrompt = `You are a ${guidelines.style} interviewer. `;
+            
+            if (guidelines.clarificationStyle === 'gentle') {
+                systemPrompt += 'Ask gentle, non-confrontational follow-up questions. ';
+            } else if (guidelines.clarificationStyle === 'direct') {
+                systemPrompt += 'Ask direct, specific follow-up questions. ';
+            } else if (guidelines.clarificationStyle === 'persistent') {
+                systemPrompt += 'Be persistent in getting detailed information. ';
+            }
+            
+            systemPrompt += `Based on the candidate's response, generate a brief follow-up question that:
+            - Probes deeper into their answer
+            - Asks for specific examples if they gave general answers
+            - Clarifies any vague points
+            - Shows genuine interest in their experience
+            
+            If the answer is already complete and detailed, return "NO_FOLLOWUP".
+            Keep the follow-up natural and conversational.`;
+            
             const completion = await openai.chat.completions.create({
                 model: 'gpt-4',
                 messages: [
                     {
                         role: 'system',
-                        content: `You are an empathetic, professional interviewer. Based on the candidate's response, 
-                        decide if a brief follow-up question would be valuable. If yes, generate a short, 
-                        clarifying follow-up question. If the answer is complete, return null. 
-                        Keep follow-ups brief and relevant.`
+                        content: systemPrompt
                     },
                     {
                         role: 'user',
-                        content: `Question asked: ${question}\n\nCandidate's response: ${response}`
+                        content: `Question asked: ${question}\n\nCandidate's response: ${response}\n\nGenerate an appropriate follow-up question or return NO_FOLLOWUP.`
                     }
                 ],
                 max_tokens: 100,
@@ -231,28 +345,51 @@ class AIInterviewer {
                     },
                     {
                         role: 'user',
-                        content: `Based on this interview transcript, provide:
-1. A score from 1-10
-2. A 2-3 sentence summary focusing on role fit
-3. Key strengths relevant to the ${role} position (2-3 specific points)
-4. Areas for improvement (2-3 constructive points)
+                        content: `Based on this interview transcript, provide a comprehensive evaluation:
 
-Consider:
-- Technical skills mentioned for the role
-- Communication clarity and structure  
-- Problem-solving approach
-- Cultural fit indicators
-- Relevant experience
-${jobDescription ? '- Alignment with the specific requirements in the job description' : ''}
+1. Overall Score (1-10) - Be fair but discerning
+2. Executive Summary (3-4 sentences) - Overall impression and fit for the role
+3. Strengths (3-5 specific points) - What they did well with examples from their answers
+4. Weaknesses (2-4 specific points) - Areas where they struggled or could improve
+5. Red Flags (if any) - Concerning behaviors, inconsistencies, or major gaps
+6. Recommendations - Clear hiring recommendation with reasoning
+7. Follow-up Areas - Topics to explore in next rounds if moving forward
+
+Evaluation Criteria:
+- Technical competence for the ${role} position
+- Communication skills and articulation
+- Problem-solving approach and thought process
+- Relevant experience and achievements
+- Cultural fit and soft skills
+- Enthusiasm and motivation for the role
+${jobDescription ? '- Specific alignment with job requirements' : ''}
 
 Transcript:
 ${transcript}
 
-Respond in JSON format: { "score": 8, "summary": "...", "strengths": ["..."], "improvements": ["..."] }`
+Respond in JSON format:
+{
+  "score": 7.5,
+  "summary": "Strong candidate with...",
+  "strengths": [
+    "Technical expertise: Demonstrated deep knowledge of...",
+    "Communication: Clear and structured responses..."
+  ],
+  "weaknesses": [
+    "Limited experience with...",
+    "Could improve on..."
+  ],
+  "redFlags": ["Any concerning issues"] or [],
+  "recommendation": {
+    "decision": "strong_yes|yes|maybe|no",
+    "reasoning": "..."
+  },
+  "followUpAreas": ["Topics to explore further..."]
+}`
                     }
                 ],
                 response_format: { type: "json_object" },
-                max_tokens: 500,
+                max_tokens: 1000,
                 temperature: 0.7
             });
             
@@ -388,7 +525,13 @@ app.post('/api/interviews/create', async (req, res) => {
         templateData: templateData || null,
         status: 'pending',
         createdAt: new Date().toISOString(),
-        interviewUrl: `/interview/${interviewId}`
+        interviewUrl: `/interview/${interviewId}`,
+        // Single-use link tracking
+        linkUsed: false,
+        linkAccessedAt: null,
+        linkAccessedFrom: null,
+        completedAt: null,
+        duration: null
     };
     
     interviews.set(interviewId, interview);
@@ -453,11 +596,43 @@ app.post('/api/test-voice', async (req, res) => {
 // Interview room
 app.get('/interview/:id', (req, res) => {
     const interview = interviews.get(req.params.id);
-    if (interview) {
-        res.sendFile(path.join(__dirname, 'views/interview.html'));
-    } else {
-        res.status(404).send('Interview not found');
+    
+    if (!interview) {
+        return res.status(404).send(`
+            <html>
+                <head><title>Interview Not Found</title></head>
+                <body style="font-family: Arial; text-align: center; padding: 50px;">
+                    <h1>Interview Not Found</h1>
+                    <p>This interview link is invalid or has expired.</p>
+                </body>
+            </html>
+        `);
     }
+    
+    // Check if link has already been used
+    if (interview.linkUsed && interview.status !== 'pending') {
+        return res.status(403).send(`
+            <html>
+                <head><title>Interview Already Taken</title></head>
+                <body style="font-family: Arial; text-align: center; padding: 50px;">
+                    <h1>Interview Already Completed</h1>
+                    <p>This interview link has already been used.</p>
+                    <p>Interview was accessed on: ${new Date(interview.linkAccessedAt).toLocaleString()}</p>
+                    <p style="color: #666; margin-top: 30px;">Each interview link can only be used once.</p>
+                </body>
+            </html>
+        `);
+    }
+    
+    // Mark link as accessed but allow the interview to proceed
+    if (!interview.linkUsed) {
+        interview.linkUsed = true;
+        interview.linkAccessedAt = new Date().toISOString();
+        interview.linkAccessedFrom = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+        interviews.set(req.params.id, interview);
+    }
+    
+    res.sendFile(path.join(__dirname, 'views/interview.html'));
 });
 
 // Results viewer
