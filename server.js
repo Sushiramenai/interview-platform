@@ -1,4 +1,9 @@
-require('dotenv').config();
+// Load environment variables
+try {
+    require('dotenv').config();
+} catch (e) {
+    console.log('Note: dotenv not loaded, using environment variables');
+}
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -371,7 +376,14 @@ async function completeInterview(socket) {
 
 // Start server
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n🚀 AI Interview Platform running on http://localhost:${PORT}`);
+    // Show appropriate URL based on environment
+    const isReplit = process.env.REPL_SLUG && process.env.REPL_OWNER;
+    if (isReplit) {
+        console.log(`\n🚀 AI Interview Platform is running!`);
+        console.log(`\n🔗 Your app URL: https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`);
+    } else {
+        console.log(`\n🚀 AI Interview Platform running on http://localhost:${PORT}`);
+    }
     console.log('\n📋 Required API Keys:');
     console.log(`   Claude API: ${process.env.CLAUDE_API_KEY ? '✅ Configured' : '❌ Missing'}`);
     console.log(`   ElevenLabs: ${process.env.ELEVENLABS_API_KEY ? '✅ Configured' : '❌ Missing'}`);
