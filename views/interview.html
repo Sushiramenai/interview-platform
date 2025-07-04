@@ -3,18 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Interview Room</title>
+    <title>AI Interview Room - In Progress</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="/css/design-system.css">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
+        /* Interview Room Specific Styles */
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-            background: #0f0f0f;
-            color: white;
+            background: linear-gradient(135deg, var(--charcoal) 0%, #1a1a1a 100%);
+            color: var(--white);
             height: 100vh;
             overflow: hidden;
         }
@@ -22,13 +27,16 @@
         .interview-container {
             display: flex;
             height: 100vh;
+            position: relative;
         }
         
-        .main-area {
+        /* Main Video Area */
+        .main-stage {
             flex: 1;
             display: flex;
             flex-direction: column;
-            background: #1a1a1a;
+            position: relative;
+            overflow: hidden;
         }
         
         .video-area {
@@ -37,66 +45,96 @@
             align-items: center;
             justify-content: center;
             position: relative;
-            padding: 20px;
+            padding: var(--space-2xl);
         }
         
-        .ai-section {
+        /* AI Avatar Section */
+        .ai-presence {
             text-align: center;
-            margin-bottom: 20px;
+            animation: fadeIn 1s ease-out;
         }
         
         .ai-avatar {
-            width: 150px;
-            height: 150px;
-            margin: 0 auto 20px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            width: 200px;
+            height: 200px;
+            margin: 0 auto var(--space-xl);
+            background: linear-gradient(135deg, var(--sage) 0%, var(--forest-green) 100%);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 60px;
+            font-size: 80px;
             position: relative;
-            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(103, 137, 72, 0.3);
+            transition: all var(--transition-base);
+        }
+        
+        .ai-avatar::before {
+            content: '';
+            position: absolute;
+            inset: -20px;
+            background: radial-gradient(circle, var(--sage) 0%, transparent 70%);
+            border-radius: 50%;
+            opacity: 0;
+            transition: opacity var(--transition-slow);
         }
         
         .ai-avatar.speaking::before {
-            content: '';
-            position: absolute;
-            inset: -10px;
-            background: inherit;
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-            opacity: 0.5;
+            animation: pulse 2s ease-in-out infinite;
+            opacity: 0.3;
+        }
+        
+        .ai-avatar.speaking {
+            transform: scale(1.05);
+            box-shadow: 0 25px 80px rgba(103, 137, 72, 0.4);
         }
         
         @keyframes pulse {
-            0%, 100% { transform: scale(1); opacity: 0.5; }
-            50% { transform: scale(1.15); opacity: 0.2; }
+            0%, 100% { transform: scale(1); opacity: 0.3; }
+            50% { transform: scale(1.2); opacity: 0.1; }
         }
         
-        .ai-text {
-            max-width: 600px;
+        .ai-message {
+            max-width: 700px;
             margin: 0 auto;
-            font-size: 18px;
-            line-height: 1.6;
-            color: #e0e0e0;
-            min-height: 60px;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            padding: var(--space-xl);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-xl);
+            min-height: 100px;
             display: flex;
             align-items: center;
             justify-content: center;
-            text-align: center;
         }
         
+        .ai-text {
+            font-size: 1.25rem;
+            line-height: 1.8;
+            color: var(--dark);
+            font-family: var(--font-primary);
+            text-align: center;
+            animation: fadeIn var(--transition-base);
+        }
+        
+        /* Candidate Video */
         .candidate-video {
             position: absolute;
-            bottom: 20px;
-            right: 20px;
-            width: 280px;
-            height: 210px;
-            background: #000;
-            border-radius: 10px;
+            bottom: var(--space-xl);
+            right: var(--space-xl);
+            width: 320px;
+            height: 240px;
+            background: var(--dark);
+            border-radius: var(--radius-lg);
             overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            border: 3px solid var(--dark-20);
+            transition: all var(--transition-base);
+        }
+        
+        .candidate-video:hover {
+            transform: scale(1.05);
+            border-color: var(--primary);
         }
         
         #localVideo {
@@ -106,261 +144,480 @@
             transform: scaleX(-1);
         }
         
+        .video-label {
+            position: absolute;
+            bottom: var(--space-sm);
+            left: var(--space-sm);
+            background: var(--dark-90);
+            padding: var(--space-xs) var(--space-sm);
+            border-radius: var(--radius-full);
+            font-size: 0.75rem;
+            backdrop-filter: blur(10px);
+        }
+        
+        /* Listening Indicator */
+        .listening-indicator {
+            position: absolute;
+            bottom: var(--space-2xl);
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            padding: var(--space-sm) var(--space-xl);
+            border-radius: var(--radius-full);
+            display: none;
+            align-items: center;
+            gap: var(--space-sm);
+            box-shadow: var(--shadow-lg);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .listening-indicator.active {
+            display: flex;
+            animation: slideUp var(--transition-base);
+        }
+        
+        .listening-wave {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            height: 20px;
+        }
+        
+        .listening-wave span {
+            width: 3px;
+            background: var(--success);
+            border-radius: var(--radius-full);
+            animation: wave 1s ease-in-out infinite;
+        }
+        
+        .listening-wave span:nth-child(1) { height: 10px; animation-delay: 0s; }
+        .listening-wave span:nth-child(2) { height: 20px; animation-delay: 0.1s; }
+        .listening-wave span:nth-child(3) { height: 15px; animation-delay: 0.2s; }
+        .listening-wave span:nth-child(4) { height: 25px; animation-delay: 0.3s; }
+        .listening-wave span:nth-child(5) { height: 18px; animation-delay: 0.4s; }
+        
+        @keyframes wave {
+            0%, 100% { transform: scaleY(0.5); }
+            50% { transform: scaleY(1); }
+        }
+        
+        /* Controls */
         .controls {
-            background: #2a2a2a;
-            padding: 20px;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            padding: var(--space-lg);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
             display: flex;
             justify-content: center;
-            gap: 15px;
-            border-top: 1px solid #333;
+            gap: var(--space-lg);
         }
         
         .control-btn {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            border: none;
+            width: 56px;
+            height: 56px;
+            border-radius: var(--radius-full);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            color: var(--white);
+            font-size: 1.5rem;
             cursor: pointer;
+            transition: all var(--transition-base);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
-            transition: all 0.3s;
-        }
-        
-        .control-btn.mic {
-            background: #4CAF50;
-        }
-        
-        .control-btn.mic.muted {
-            background: #f44336;
-        }
-        
-        .control-btn.video {
-            background: #2196F3;
-        }
-        
-        .control-btn.video.off {
-            background: #f44336;
         }
         
         .control-btn:hover {
-            transform: scale(1.1);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+            border-color: rgba(255, 255, 255, 0.4);
         }
         
+        .control-btn.active {
+            background: var(--success);
+            border-color: var(--success);
+        }
+        
+        .control-btn.inactive {
+            background: var(--error);
+            border-color: var(--error);
+        }
+        
+        /* Sidebar */
         .sidebar {
-            width: 350px;
-            background: #0f0f0f;
-            border-left: 1px solid #2a2a2a;
+            width: 420px;
+            background: var(--glass);
+            backdrop-filter: blur(30px);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
             display: flex;
             flex-direction: column;
+            color: var(--dark);
         }
         
         .sidebar-header {
-            padding: 20px;
-            background: #1a1a1a;
-            border-bottom: 1px solid #2a2a2a;
+            padding: var(--space-xl);
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
         
-        .sidebar-header h3 {
-            margin-bottom: 5px;
+        .sidebar-title {
+            font-family: var(--font-display);
+            font-size: 1.5rem;
+            margin-bottom: var(--space-md);
+            color: var(--dark);
         }
         
-        .progress {
+        .progress-section {
+            margin-top: var(--space-md);
+        }
+        
+        .progress-info {
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 10px;
-            color: #888;
-            font-size: 14px;
-            margin-top: 10px;
+            margin-bottom: var(--space-sm);
         }
         
         .progress-bar {
-            flex: 1;
-            height: 4px;
-            background: #2a2a2a;
-            border-radius: 2px;
+            height: 6px;
+            background: var(--dark-10);
+            border-radius: var(--radius-full);
             overflow: hidden;
         }
         
         .progress-fill {
             height: 100%;
-            background: #667eea;
-            transition: width 0.5s ease;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--crimson) 100%);
+            transition: width var(--transition-slow);
+            border-radius: var(--radius-full);
         }
         
-        .transcript {
+        /* Transcript */
+        .transcript-container {
             flex: 1;
             overflow-y: auto;
-            padding: 20px;
+            padding: var(--space-xl);
         }
         
         .transcript-entry {
-            margin-bottom: 20px;
-            padding: 15px;
-            background: #1a1a1a;
-            border-radius: 8px;
-            border-left: 3px solid transparent;
+            margin-bottom: var(--space-lg);
+            animation: slideUp var(--transition-base);
         }
         
-        .transcript-entry.ai {
-            border-left-color: #667eea;
+        .transcript-header {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            margin-bottom: var(--space-sm);
         }
         
-        .transcript-entry.candidate {
-            border-left-color: #4CAF50;
+        .transcript-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-full);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+        
+        .transcript-avatar.ai {
+            background: linear-gradient(135deg, var(--sage) 0%, var(--forest-green) 100%);
+        }
+        
+        .transcript-avatar.candidate {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--crimson) 100%);
         }
         
         .transcript-speaker {
             font-weight: 600;
-            margin-bottom: 5px;
-            font-size: 14px;
-            opacity: 0.8;
+            font-size: 0.875rem;
         }
         
-        .transcript-text {
-            line-height: 1.6;
+        .transcript-time {
+            font-size: 0.75rem;
+            color: var(--dark-50);
+            margin-left: auto;
         }
         
+        .transcript-content {
+            background: var(--white);
+            padding: var(--space-md);
+            border-radius: var(--radius-md);
+            margin-left: 40px;
+            position: relative;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .transcript-content::before {
+            content: '';
+            position: absolute;
+            top: 8px;
+            left: -6px;
+            width: 12px;
+            height: 12px;
+            background: var(--white);
+            transform: rotate(45deg);
+        }
+        
+        /* Status Bar */
         .status-bar {
-            padding: 15px 20px;
-            background: #1a1a1a;
-            border-top: 1px solid #2a2a2a;
-            text-align: center;
-            font-size: 14px;
+            padding: var(--space-md);
+            background: rgba(255, 255, 255, 0.05);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-sm);
         }
         
         .status-indicator {
-            display: inline-flex;
+            display: flex;
             align-items: center;
-            gap: 8px;
+            gap: var(--space-sm);
+            font-size: 0.875rem;
         }
         
         .status-dot {
             width: 8px;
             height: 8px;
-            background: #4CAF50;
-            border-radius: 50%;
-            animation: blink 2s infinite;
+            border-radius: var(--radius-full);
+            background: var(--success);
+            animation: blink 2s ease-in-out infinite;
         }
         
         @keyframes blink {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+            50% { opacity: 0.3; }
         }
         
-        .loading-overlay {
+        /* Loading Screen */
+        .loading-screen {
             position: fixed;
             inset: 0;
-            background: #0f0f0f;
+            background: linear-gradient(135deg, var(--charcoal) 0%, #1a1a1a 100%);
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 1000;
+            z-index: 2000;
         }
         
         .loading-content {
             text-align: center;
+            animation: fadeIn var(--transition-slow);
         }
         
-        .spinner {
+        .loading-logo {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto var(--space-xl);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--crimson) 100%);
+            border-radius: var(--radius-xl);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            box-shadow: 0 20px 60px rgba(206, 42, 43, 0.3);
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        .loading-title {
+            font-family: var(--font-display);
+            font-size: 2rem;
+            margin-bottom: var(--space-md);
+            background: linear-gradient(135deg, var(--white) 0%, var(--light) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .loading-subtitle {
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: var(--space-2xl);
+        }
+        
+        .loading-spinner {
             width: 60px;
             height: 60px;
-            border: 3px solid #333;
-            border-top-color: #667eea;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: var(--primary);
             border-radius: 50%;
             animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
+            margin: 0 auto;
         }
         
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
-        .listening-indicator {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.8);
-            padding: 10px 20px;
-            border-radius: 20px;
-            display: none;
+        /* Completion Screen */
+        .completion-screen {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, var(--light) 0%, var(--white) 100%);
+            display: flex;
             align-items: center;
-            gap: 10px;
+            justify-content: center;
+            z-index: 2000;
+            animation: fadeIn var(--transition-slow);
         }
         
-        .listening-indicator.active {
+        .completion-content {
+            text-align: center;
+            max-width: 600px;
+            padding: var(--space-3xl);
+        }
+        
+        .completion-icon {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto var(--space-xl);
+            background: linear-gradient(135deg, var(--success) 0%, #4a7c3c 100%);
+            border-radius: var(--radius-full);
             display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: var(--white);
+            box-shadow: 0 20px 60px rgba(103, 137, 72, 0.3);
+            animation: scaleIn var(--transition-spring);
         }
         
-        .listening-dots {
-            display: flex;
-            gap: 5px;
+        .completion-title {
+            font-family: var(--font-display);
+            font-size: 2.5rem;
+            color: var(--dark);
+            margin-bottom: var(--space-lg);
         }
         
-        .listening-dots span {
-            width: 8px;
-            height: 8px;
-            background: #4CAF50;
-            border-radius: 50%;
-            animation: bounce 1.4s infinite ease-in-out;
+        .completion-message {
+            font-size: 1.125rem;
+            color: var(--dark-70);
+            line-height: 1.8;
+            margin-bottom: var(--space-2xl);
         }
         
-        .listening-dots span:nth-child(1) { animation-delay: -0.32s; }
-        .listening-dots span:nth-child(2) { animation-delay: -0.16s; }
+        .score-display {
+            background: var(--white);
+            padding: var(--space-xl);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            margin-bottom: var(--space-2xl);
+        }
         
-        @keyframes bounce {
-            0%, 80%, 100% { transform: scale(0); }
-            40% { transform: scale(1); }
+        .score-value {
+            font-size: 4rem;
+            font-weight: 700;
+            font-family: var(--font-display);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--crimson) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .score-label {
+            font-size: 0.875rem;
+            color: var(--dark-50);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-top: var(--space-sm);
+        }
+        
+        /* Mobile Responsive */
+        @media (max-width: 1024px) {
+            .sidebar {
+                position: fixed;
+                right: -420px;
+                height: 100vh;
+                transition: right var(--transition-base);
+                z-index: 100;
+            }
+            
+            .sidebar.active {
+                right: 0;
+            }
+            
+            .menu-toggle {
+                position: fixed;
+                top: var(--space-lg);
+                right: var(--space-lg);
+                z-index: 101;
+                background: var(--glass);
+                backdrop-filter: blur(20px);
+                border: 2px solid rgba(255, 255, 255, 0.2);
+                width: 48px;
+                height: 48px;
+                border-radius: var(--radius-full);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                color: var(--white);
+            }
         }
         
         @media (max-width: 768px) {
-            .interview-container {
-                flex-direction: column;
-            }
-            
-            .sidebar {
-                width: 100%;
-                height: 40%;
-                border-left: none;
-                border-top: 1px solid #2a2a2a;
-            }
-            
             .candidate-video {
-                width: 120px;
-                height: 90px;
+                width: 160px;
+                height: 120px;
+                bottom: var(--space-md);
+                right: var(--space-md);
+            }
+            
+            .ai-avatar {
+                width: 150px;
+                height: 150px;
+                font-size: 60px;
+            }
+            
+            .ai-message {
+                padding: var(--space-lg);
+            }
+            
+            .ai-text {
+                font-size: 1rem;
             }
         }
     </style>
 </head>
 <body>
-    <div class="loading-overlay" id="loadingOverlay">
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loadingScreen">
         <div class="loading-content">
-            <div class="spinner"></div>
-            <h2>Preparing Your Interview</h2>
-            <p style="margin-top: 10px; opacity: 0.7;">Setting up camera and microphone...</p>
+            <div class="loading-logo">
+                <i class="fas fa-microphone-alt"></i>
+            </div>
+            <h2 class="loading-title">Preparing Your Interview</h2>
+            <p class="loading-subtitle">Setting up camera and microphone...</p>
+            <div class="loading-spinner"></div>
         </div>
     </div>
-
-    <div class="interview-container" style="display: none;" id="interviewContainer">
-        <div class="main-area">
+    
+    <!-- Main Interview Container -->
+    <div class="interview-container" id="interviewContainer" style="display: none;">
+        <!-- Main Stage -->
+        <div class="main-stage">
             <div class="video-area">
-                <div class="ai-section">
+                <div class="ai-presence">
                     <div class="ai-avatar" id="aiAvatar">
-                        <span>🤖</span>
+                        <i class="fas fa-robot"></i>
                     </div>
-                    <div class="ai-text" id="aiText">
-                        Preparing to start your interview...
+                    <div class="ai-message glass">
+                        <p class="ai-text" id="aiText">
+                            Hello! I'm preparing to start your interview...
+                        </p>
                     </div>
                 </div>
                 
+                <!-- Candidate Video -->
                 <div class="candidate-video">
                     <video id="localVideo" autoplay muted></video>
+                    <span class="video-label">You</span>
                 </div>
                 
+                <!-- Listening Indicator -->
                 <div class="listening-indicator" id="listeningIndicator">
-                    <div class="listening-dots">
+                    <div class="listening-wave">
+                        <span></span>
+                        <span></span>
                         <span></span>
                         <span></span>
                         <span></span>
@@ -369,28 +626,33 @@
                 </div>
             </div>
             
+            <!-- Controls -->
             <div class="controls">
-                <button class="control-btn mic" id="micBtn" title="Toggle Microphone">
-                    🎤
+                <button class="control-btn active" id="micBtn" title="Toggle Microphone">
+                    <i class="fas fa-microphone"></i>
                 </button>
-                <button class="control-btn video" id="videoBtn" title="Toggle Camera">
-                    📹
+                <button class="control-btn active" id="videoBtn" title="Toggle Camera">
+                    <i class="fas fa-video"></i>
                 </button>
             </div>
         </div>
         
-        <div class="sidebar">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <h3>Interview Progress</h3>
-                <div class="progress">
-                    <span id="progressText">Question 0 of 0</span>
+                <h3 class="sidebar-title">Interview Progress</h3>
+                <div class="progress-section">
+                    <div class="progress-info">
+                        <span id="progressText">Question 0 of 0</span>
+                        <span class="text-muted" id="timeElapsed">00:00</span>
+                    </div>
                     <div class="progress-bar">
                         <div class="progress-fill" id="progressFill" style="width: 0%"></div>
                     </div>
                 </div>
             </div>
             
-            <div class="transcript" id="transcript">
+            <div class="transcript-container" id="transcript">
                 <!-- Transcript entries will be added here -->
             </div>
             
@@ -401,9 +663,16 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Mobile Menu Toggle -->
+        <button class="menu-toggle hide-desktop" onclick="toggleSidebar()">
+            <i class="fas fa-bars"></i>
+        </button>
     </div>
-
+    
+    <!-- Socket.io -->
     <script src="/socket.io/socket.io.js"></script>
+    
     <script>
         // Get interview ID from URL
         const interviewId = window.location.pathname.split('/').pop();
@@ -417,6 +686,8 @@
         let isListening = false;
         let currentQuestionIndex = 0;
         let totalQuestions = 0;
+        let startTime = Date.now();
+        let timeInterval = null;
         
         // Initialize the interview
         init();
@@ -448,15 +719,18 @@
                 // Setup UI handlers
                 setupUIHandlers();
                 
-                // Show interview UI
+                // Start time tracking
+                startTimeTracking();
+                
+                // Show interview UI after delay
                 setTimeout(() => {
-                    document.getElementById('loadingOverlay').style.display = 'none';
+                    document.getElementById('loadingScreen').style.display = 'none';
                     document.getElementById('interviewContainer').style.display = 'flex';
-                }, 2000);
+                }, 3000);
                 
             } catch (error) {
                 console.error('Initialization error:', error);
-                alert('Please allow camera and microphone access to continue.');
+                alert('Please allow camera and microphone access to continue with the interview.');
             }
         }
         
@@ -489,7 +763,7 @@
                 setTimeout(() => {
                     startListening();
                     socket.emit('ready-for-question');
-                }, 10000);
+                }, 8000);
             });
             
             socket.on('ai-question', (data) => {
@@ -633,17 +907,32 @@
         }
         
         function displayAIMessage(text) {
-            document.getElementById('aiText').textContent = text;
+            const aiText = document.getElementById('aiText');
+            aiText.style.opacity = '0';
+            setTimeout(() => {
+                aiText.textContent = text;
+                aiText.style.opacity = '1';
+            }, 150);
         }
         
         function addToTranscript(speaker, text) {
             const transcript = document.getElementById('transcript');
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
             const entry = document.createElement('div');
-            entry.className = `transcript-entry ${speaker === 'You' ? 'candidate' : 'ai'}`;
+            entry.className = 'transcript-entry';
             
             entry.innerHTML = `
-                <div class="transcript-speaker">${speaker}</div>
-                <div class="transcript-text">${text}</div>
+                <div class="transcript-header">
+                    <div class="transcript-avatar ${speaker === 'You' ? 'candidate' : 'ai'}">
+                        <i class="fas ${speaker === 'You' ? 'fa-user' : 'fa-robot'}"></i>
+                    </div>
+                    <span class="transcript-speaker">${speaker}</span>
+                    <span class="transcript-time">${time}</span>
+                </div>
+                <div class="transcript-content">
+                    ${text}
+                </div>
             `;
             
             transcript.appendChild(entry);
@@ -680,6 +969,16 @@
         
         function updateStatus(status) {
             document.getElementById('statusText').textContent = status;
+        }
+        
+        function startTimeTracking() {
+            timeInterval = setInterval(() => {
+                const elapsed = Date.now() - startTime;
+                const minutes = Math.floor(elapsed / 60000);
+                const seconds = Math.floor((elapsed % 60000) / 1000);
+                document.getElementById('timeElapsed').textContent = 
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }, 1000);
         }
         
         function startRecording() {
@@ -731,8 +1030,11 @@
                 if (audioTrack) {
                     audioTrack.enabled = !audioTrack.enabled;
                     const btn = document.getElementById('micBtn');
-                    btn.classList.toggle('muted', !audioTrack.enabled);
-                    btn.textContent = audioTrack.enabled ? '🎤' : '🔇';
+                    btn.classList.toggle('active', audioTrack.enabled);
+                    btn.classList.toggle('inactive', !audioTrack.enabled);
+                    btn.innerHTML = audioTrack.enabled ? 
+                        '<i class="fas fa-microphone"></i>' : 
+                        '<i class="fas fa-microphone-slash"></i>';
                 }
             });
             
@@ -742,43 +1044,50 @@
                 if (videoTrack) {
                     videoTrack.enabled = !videoTrack.enabled;
                     const btn = document.getElementById('videoBtn');
-                    btn.classList.toggle('off', !videoTrack.enabled);
-                    btn.textContent = videoTrack.enabled ? '📹' : '🚫';
+                    btn.classList.toggle('active', videoTrack.enabled);
+                    btn.classList.toggle('inactive', !videoTrack.enabled);
+                    btn.innerHTML = videoTrack.enabled ? 
+                        '<i class="fas fa-video"></i>' : 
+                        '<i class="fas fa-video-slash"></i>';
                 }
             });
         }
         
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+        }
+        
         function showCompletion(evaluation) {
-            document.getElementById('interviewContainer').innerHTML = `
-                <div style="display: flex; align-items: center; justify-content: center; width: 100%; background: #0f0f0f;">
-                    <div style="text-align: center; max-width: 600px; padding: 40px;">
-                        <h1 style="font-size: 48px; margin-bottom: 20px;">✅</h1>
-                        <h2 style="margin-bottom: 20px;">Interview Completed!</h2>
-                        <p style="opacity: 0.8; margin-bottom: 30px; line-height: 1.6;">
+            clearInterval(timeInterval);
+            
+            const completionHTML = `
+                <div class="completion-screen">
+                    <div class="completion-content">
+                        <div class="completion-icon">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <h1 class="completion-title">Interview Completed!</h1>
+                        <p class="completion-message">
                             Thank you for completing the interview. Your responses have been recorded 
-                            and will be reviewed by our hiring team.
+                            and will be reviewed by our hiring team. We appreciate your time and interest 
+                            in joining our organization.
                         </p>
                         ${evaluation ? `
-                        <div style="background: #1a1a1a; padding: 20px; border-radius: 10px; margin-bottom: 30px;">
-                            <h3 style="margin-bottom: 15px;">Initial Assessment</h3>
-                            <p style="font-size: 36px; margin: 20px 0; color: #667eea;">
-                                ${evaluation.score}/10
-                            </p>
-                            <p style="opacity: 0.8; line-height: 1.6;">${evaluation.summary}</p>
+                        <div class="score-display">
+                            <div class="score-value">${evaluation.score}/10</div>
+                            <div class="score-label">Initial Assessment Score</div>
+                            <p class="text-muted mt-3">${evaluation.summary}</p>
                         </div>
                         ` : ''}
-                        <button onclick="window.close()" style="
-                            background: #667eea;
-                            color: white;
-                            border: none;
-                            padding: 12px 30px;
-                            border-radius: 5px;
-                            font-size: 16px;
-                            cursor: pointer;
-                        ">Close Window</button>
+                        <button class="btn btn-primary btn-lg" onclick="window.close()">
+                            <i class="fas fa-times-circle"></i>
+                            Close Interview
+                        </button>
                     </div>
                 </div>
             `;
+            
+            document.body.innerHTML = completionHTML;
         }
     </script>
 </body>
