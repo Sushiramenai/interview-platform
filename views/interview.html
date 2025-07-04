@@ -1106,16 +1106,12 @@
                         <h1 class="completion-title">Interview Completed!</h1>
                         <p class="completion-message">
                             Thank you for completing the interview. Your responses have been recorded 
-                            and will be reviewed by our hiring team. We appreciate your time and interest 
-                            in joining our organization.
+                            and will be reviewed by our hiring team.
                         </p>
-                        ${evaluation ? `
-                        <div class="score-display">
-                            <div class="score-value">${evaluation.score}/10</div>
-                            <div class="score-label">Initial Assessment Score</div>
-                            <p class="text-muted mt-3">${evaluation.summary}</p>
-                        </div>
-                        ` : ''}
+                        <p class="completion-message">
+                            We appreciate your time and interest in joining our organization. 
+                            We will be in touch soon regarding the next steps in the process.
+                        </p>
                         <button class="btn btn-primary btn-lg" onclick="window.close()">
                             <i class="fas fa-times-circle"></i>
                             Close Interview

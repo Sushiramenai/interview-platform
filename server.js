@@ -10,6 +10,7 @@ const { Server } = require('socket.io');
 const path = require('path');
 const fs = require('fs').promises;
 const { v4: uuidv4 } = require('uuid');
+const OpenAI = require('openai');
 
 const app = express();
 const server = http.createServer(app);
@@ -25,13 +26,45 @@ app.use(express.static('public'));
 // In-memory storage (could be replaced with database)
 const interviews = new Map();
 const results = new Map();
+const templates = new Map();
+
+// Configuration storage
+let appConfig = {
+    openai_api_key: process.env.OPENAI_API_KEY || '',
+    elevenlabs_api_key: process.env.ELEVENLABS_API_KEY || '',
+    elevenlabs_voice_id: process.env.ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL'
+};
+
+// Load config from file if exists
+async function loadConfig() {
+    try {
+        const configPath = path.join(__dirname, 'config.json');
+        const configData = await fs.readFile(configPath, 'utf8');
+        appConfig = { ...appConfig, ...JSON.parse(configData) };
+    } catch (error) {
+        // Config file doesn't exist, use defaults
+    }
+}
+
+// Save config to file
+async function saveConfig() {
+    try {
+        const configPath = path.join(__dirname, 'config.json');
+        await fs.writeFile(configPath, JSON.stringify(appConfig, null, 2));
+    } catch (error) {
+        console.error('Error saving config:', error);
+    }
+}
+
+// Initialize config on startup
+loadConfig();
 
 // ===== SIMPLIFIED SERVICES =====
 
 // AI Interviewer Service
 class AIInterviewer {
     constructor() {
-        this.claudeApiKey = process.env.CLAUDE_API_KEY;
+        this.conversationHistory = new Map();
         // Default questions - can be customized per interview
         this.defaultQuestions = [
             "Tell me about yourself and your professional background.",
@@ -43,39 +76,117 @@ class AIInterviewer {
         ];
     }
     
+    getOpenAIClient() {
+        if (!appConfig.openai_api_key) {
+            return null;
+        }
+        return new OpenAI({ apiKey: appConfig.openai_api_key });
+    }
+    
     getQuestionsForRole(role, customQuestions) {
         // Use custom questions if provided, otherwise use defaults
         return customQuestions && customQuestions.length > 0 ? customQuestions : this.defaultQuestions;
     }
     
-    async getNextQuestion(index, questions) {
+    async getNextQuestion(index, questions, interviewId, previousResponse) {
         const questionSet = questions || this.defaultQuestions;
         if (index < questionSet.length) {
+            // Get conversation context
+            const history = this.conversationHistory.get(interviewId) || [];
+            
+            // Generate a conversational bridge if we have OpenAI configured
+            const openai = this.getOpenAIClient();
+            if (openai && previousResponse && index > 0) {
+                try {
+                    const response = await openai.chat.completions.create({
+                        model: 'gpt-4',
+                        messages: [
+                            {
+                                role: 'system',
+                                content: `You are a warm, professional interviewer. The candidate just answered a question. 
+                                Acknowledge their response briefly and naturally transition to the next question. 
+                                Keep it conversational and empathetic. Maximum 2 sentences for the acknowledgment.`
+                            },
+                            {
+                                role: 'user',
+                                content: `Previous question: ${questionSet[index-1]}\n\nCandidate's response: ${previousResponse}\n\nNext question to ask: ${questionSet[index]}`
+                            }
+                        ],
+                        max_tokens: 150,
+                        temperature: 0.7
+                    });
+                    
+                    return response.choices[0].message.content;
+                } catch (error) {
+                    console.error('Error generating conversational response:', error);
+                }
+            }
+            
             return questionSet[index];
         }
         return null;
     }
     
+    async generateFollowUp(interviewId, question, response) {
+        const openai = this.getOpenAIClient();
+        if (!openai) return null;
+        
+        try {
+            const history = this.conversationHistory.get(interviewId) || [];
+            const completion = await openai.chat.completions.create({
+                model: 'gpt-4',
+                messages: [
+                    {
+                        role: 'system',
+                        content: `You are an empathetic, professional interviewer. Based on the candidate's response, 
+                        decide if a brief follow-up question would be valuable. If yes, generate a short, 
+                        clarifying follow-up question. If the answer is complete, return null. 
+                        Keep follow-ups brief and relevant.`
+                    },
+                    {
+                        role: 'user',
+                        content: `Question asked: ${question}\n\nCandidate's response: ${response}`
+                    }
+                ],
+                max_tokens: 100,
+                temperature: 0.7
+            });
+            
+            const followUp = completion.choices[0].message.content;
+            return followUp.toLowerCase().includes('null') ? null : followUp;
+        } catch (error) {
+            console.error('Error generating follow-up:', error);
+            return null;
+        }
+    }
+    
     async evaluateCandidate(transcript, role) {
-        if (!this.claudeApiKey) {
+        const openai = this.getOpenAIClient();
+        if (!openai) {
             return { score: 0, summary: "API key not configured" };
         }
         
         try {
-            const Anthropic = require('@anthropic-ai/sdk');
-            const anthropic = new Anthropic({ apiKey: this.claudeApiKey });
-            
-            const prompt = `You are evaluating a candidate for a ${role} position at Senbird.
-
-Based on this interview transcript, provide:
-1. A score from 1-10 (be fair but critical - 7-8 is excellent, 9-10 is exceptional)
+            const response = await openai.chat.completions.create({
+                model: 'gpt-4',
+                messages: [
+                    {
+                        role: 'system',
+                        content: `You are evaluating a candidate for a ${role} position. Provide a thorough, 
+                        fair evaluation. Be constructive and professional. Score fairly - 7-8 is excellent, 
+                        9-10 is exceptional.`
+                    },
+                    {
+                        role: 'user',
+                        content: `Based on this interview transcript, provide:
+1. A score from 1-10
 2. A 2-3 sentence summary focusing on role fit
 3. Key strengths relevant to the ${role} position (2-3 specific points)
 4. Areas for improvement (2-3 constructive points)
 
 Consider:
 - Technical skills mentioned for the role
-- Communication clarity and structure
+- Communication clarity and structure  
 - Problem-solving approach
 - Cultural fit indicators
 - Relevant experience
@@ -83,15 +194,15 @@ Consider:
 Transcript:
 ${transcript}
 
-Respond in JSON format: { "score": 8, "summary": "...", "strengths": ["..."], "improvements": ["..."] }`;
-            
-            const response = await anthropic.messages.create({
-                model: 'claude-3-haiku-20240307',
+Respond in JSON format: { "score": 8, "summary": "...", "strengths": ["..."], "improvements": ["..."] }`
+                    }
+                ],
+                response_format: { type: "json_object" },
                 max_tokens: 500,
-                messages: [{ role: 'user', content: prompt }]
+                temperature: 0.7
             });
             
-            return JSON.parse(response.content[0].text);
+            return JSON.parse(response.choices[0].message.content);
         } catch (error) {
             console.error('Evaluation error:', error);
             return { 
@@ -102,19 +213,35 @@ Respond in JSON format: { "score": 8, "summary": "...", "strengths": ["..."], "i
             };
         }
     }
+    
+    updateConversationHistory(interviewId, speaker, text) {
+        const history = this.conversationHistory.get(interviewId) || [];
+        history.push({ speaker, text, timestamp: new Date().toISOString() });
+        this.conversationHistory.set(interviewId, history);
+    }
 }
 
 // Voice Service
 class VoiceService {
     constructor() {
-        this.apiKey = process.env.ELEVENLABS_API_KEY;
-        this.voiceId = process.env.ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL'; // Default voice Rachel
         this.voiceSettings = {
             stability: 0.75,
             similarity_boost: 0.75,
             style: 0.5,
             use_speaker_boost: true
         };
+    }
+    
+    get apiKey() {
+        return appConfig.elevenlabs_api_key;
+    }
+    
+    get voiceId() {
+        return this._voiceId || appConfig.elevenlabs_voice_id;
+    }
+    
+    set voiceId(id) {
+        this._voiceId = id;
     }
     
     async generateSpeech(text) {
@@ -239,6 +366,162 @@ app.get('/results/:id', (req, res) => {
     res.sendFile(path.join(__dirname, 'views/results.html'));
 });
 
+// ===== SETTINGS ENDPOINTS =====
+
+// Save API keys and settings
+app.post('/api/settings/save', async (req, res) => {
+    const { openai_api_key, elevenlabs_api_key, elevenlabs_voice_id } = req.body;
+    
+    // Update config
+    if (openai_api_key !== undefined) appConfig.openai_api_key = openai_api_key;
+    if (elevenlabs_api_key !== undefined) appConfig.elevenlabs_api_key = elevenlabs_api_key;
+    if (elevenlabs_voice_id !== undefined) appConfig.elevenlabs_voice_id = elevenlabs_voice_id;
+    
+    // Save to file
+    await saveConfig();
+    
+    res.json({ 
+        success: true,
+        message: 'Settings saved successfully'
+    });
+});
+
+// Check if API keys are configured
+app.get('/api/settings/check', (req, res) => {
+    res.json({
+        openai: !!appConfig.openai_api_key,
+        elevenlabs: !!appConfig.elevenlabs_api_key,
+        voice_id: appConfig.elevenlabs_voice_id
+    });
+});
+
+// ===== TEMPLATE ENDPOINTS =====
+
+// Get all templates
+app.get('/api/templates', async (req, res) => {
+    try {
+        const templatesPath = path.join(__dirname, 'data/templates.json');
+        let templatesData = [];
+        
+        try {
+            const data = await fs.readFile(templatesPath, 'utf8');
+            templatesData = JSON.parse(data);
+        } catch (error) {
+            // File doesn't exist, return empty array
+        }
+        
+        res.json(templatesData);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to load templates' });
+    }
+});
+
+// Create new template
+app.post('/api/templates', async (req, res) => {
+    try {
+        const { name, role, questions, description } = req.body;
+        const template = {
+            id: uuidv4(),
+            name,
+            role,
+            questions,
+            description,
+            createdAt: new Date().toISOString()
+        };
+        
+        // Load existing templates
+        const templatesPath = path.join(__dirname, 'data/templates.json');
+        let templates = [];
+        
+        try {
+            const data = await fs.readFile(templatesPath, 'utf8');
+            templates = JSON.parse(data);
+        } catch (error) {
+            // File doesn't exist
+        }
+        
+        // Add new template
+        templates.push(template);
+        
+        // Save to file
+        await fs.mkdir(path.dirname(templatesPath), { recursive: true });
+        await fs.writeFile(templatesPath, JSON.stringify(templates, null, 2));
+        
+        res.json({ success: true, template });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to create template' });
+    }
+});
+
+// Update template
+app.put('/api/templates/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, role, questions, description } = req.body;
+        
+        // Load templates
+        const templatesPath = path.join(__dirname, 'data/templates.json');
+        let templates = [];
+        
+        try {
+            const data = await fs.readFile(templatesPath, 'utf8');
+            templates = JSON.parse(data);
+        } catch (error) {
+            return res.status(404).json({ error: 'Templates not found' });
+        }
+        
+        // Find and update template
+        const index = templates.findIndex(t => t.id === id);
+        if (index === -1) {
+            return res.status(404).json({ error: 'Template not found' });
+        }
+        
+        templates[index] = {
+            ...templates[index],
+            name,
+            role,
+            questions,
+            description,
+            updatedAt: new Date().toISOString()
+        };
+        
+        // Save
+        await fs.writeFile(templatesPath, JSON.stringify(templates, null, 2));
+        
+        res.json({ success: true, template: templates[index] });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update template' });
+    }
+});
+
+// Delete template
+app.delete('/api/templates/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Load templates
+        const templatesPath = path.join(__dirname, 'data/templates.json');
+        let templates = [];
+        
+        try {
+            const data = await fs.readFile(templatesPath, 'utf8');
+            templates = JSON.parse(data);
+        } catch (error) {
+            return res.status(404).json({ error: 'Templates not found' });
+        }
+        
+        // Filter out the template
+        templates = templates.filter(t => t.id !== id);
+        
+        // Save
+        await fs.writeFile(templatesPath, JSON.stringify(templates, null, 2));
+        
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to delete template' });
+    }
+});
+
 // ===== SOCKET.IO HANDLERS =====
 
 io.on('connection', (socket) => {
@@ -297,7 +580,15 @@ io.on('connection', (socket) => {
         if (!socket.interviewId) return;
         
         socket.questionIndex++;
-        const question = await aiInterviewer.getNextQuestion(socket.questionIndex, socket.questions);
+        const previousResponse = socket.questionIndex > 0 ? 
+            socket.responses[socket.responses.length - 1]?.response : null;
+        
+        const question = await aiInterviewer.getNextQuestion(
+            socket.questionIndex, 
+            socket.questions,
+            socket.interviewId,
+            previousResponse
+        );
         
         if (question) {
             const audio = await voiceService.generateSpeech(question);
@@ -313,6 +604,8 @@ io.on('connection', (socket) => {
                 text: question,
                 timestamp: new Date().toISOString()
             });
+            
+            aiInterviewer.updateConversationHistory(socket.interviewId, 'AI', question);
         } else {
             // Interview complete
             await completeInterview(socket);
@@ -335,14 +628,46 @@ io.on('connection', (socket) => {
             timestamp: new Date().toISOString()
         });
         
-        // Simple acknowledgment
-        const ack = "Thank you for that answer. Let me ask you the next question.";
-        const ackAudio = await voiceService.generateSpeech(ack);
+        aiInterviewer.updateConversationHistory(socket.interviewId, 'Candidate', text);
         
-        socket.emit('ai-acknowledgment', {
-            text: ack,
-            audio: ackAudio
-        });
+        // Check if we should ask a follow-up question
+        const followUp = await aiInterviewer.generateFollowUp(
+            socket.interviewId,
+            socket.questions[socket.questionIndex],
+            text
+        );
+        
+        if (followUp && Math.random() < 0.3) { // 30% chance of follow-up
+            const followUpAudio = await voiceService.generateSpeech(followUp);
+            socket.emit('ai-followup', {
+                text: followUp,
+                audio: followUpAudio
+            });
+            
+            socket.transcript.push({
+                speaker: 'AI',
+                text: followUp,
+                timestamp: new Date().toISOString()
+            });
+            
+            aiInterviewer.updateConversationHistory(socket.interviewId, 'AI', followUp);
+            socket.expectingFollowUp = true;
+        } else {
+            // Simple acknowledgment for smooth transitions
+            const acks = [
+                "Thank you for sharing that.",
+                "I appreciate your response.",
+                "That's interesting, thank you.",
+                "Thank you, that's helpful to know."
+            ];
+            const ack = acks[Math.floor(Math.random() * acks.length)];
+            const ackAudio = await voiceService.generateSpeech(ack);
+            
+            socket.emit('ai-acknowledgment', {
+                text: ack,
+                audio: ackAudio
+            });
+        }
     });
     
     socket.on('save-recording', async (data) => {
@@ -435,8 +760,8 @@ server.listen(PORT, '0.0.0.0', () => {
         console.log(`\n🚀 Senbird Interview System running on http://localhost:${PORT}`);
     }
     console.log('\n📋 Required API Keys:');
-    console.log(`   Claude API: ${process.env.CLAUDE_API_KEY ? '✅ Configured' : '❌ Missing'}`);
-    console.log(`   ElevenLabs: ${process.env.ELEVENLABS_API_KEY ? '✅ Configured' : '❌ Missing'}`);
+    console.log(`   OpenAI API: ${appConfig.openai_api_key ? '✅ Configured' : '❌ Missing'}`);
+    console.log(`   ElevenLabs: ${appConfig.elevenlabs_api_key ? '✅ Configured' : '❌ Missing'}`);
     console.log('\n🔗 Endpoints:');
     console.log(`   HR Dashboard: http://localhost:${PORT}`);
     console.log(`   Create Interview: POST /api/interviews/create`);
