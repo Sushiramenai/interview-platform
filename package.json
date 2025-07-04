@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "setup": "node simple-setup.js"
+    "setup": "node simple-setup.js",
+    "test": "node test-integrations.js"
   },
   "dependencies": {
     "openai": "^4.20.0",
@@ -23,8 +24,11 @@
     "hr",
     "recruitment",
     "video",
-    "claude",
-    "elevenlabs"
+    "openai",
+    "gpt-4",
+    "elevenlabs",
+    "voice",
+    "senbird"
   ],
   "author": "AI Interview Platform",
   "license": "MIT"
