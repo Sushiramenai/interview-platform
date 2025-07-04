@@ -345,6 +345,82 @@
             opacity: 0.1;
             animation: float 20s ease-in-out infinite reverse;
         }
+        
+        /* Advanced Settings */
+        .advanced-settings {
+            background: var(--light);
+            border-radius: var(--radius-lg);
+            padding: 0;
+            margin-top: var(--space-xl);
+            border: 1px solid var(--dark-05);
+        }
+        
+        .advanced-toggle {
+            padding: var(--space-md) var(--space-lg);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            font-weight: 600;
+            color: var(--dark);
+            transition: all var(--transition-base);
+            list-style: none;
+        }
+        
+        .advanced-toggle:hover {
+            color: var(--primary);
+        }
+        
+        .advanced-toggle::marker {
+            content: '';
+        }
+        
+        .advanced-content {
+            padding: var(--space-lg);
+            padding-top: 0;
+        }
+        
+        .settings-section {
+            margin-bottom: var(--space-xl);
+            padding: var(--space-lg);
+            background: var(--white);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--dark-05);
+        }
+        
+        .settings-section h4 {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            margin-bottom: var(--space-md);
+            color: var(--dark);
+            font-size: 1.125rem;
+        }
+        
+        .question-item {
+            position: relative;
+        }
+        
+        .question-input {
+            padding-right: 40px;
+        }
+        
+        .remove-question {
+            position: absolute;
+            right: 10px;
+            top: 35px;
+            background: none;
+            border: none;
+            color: var(--error);
+            cursor: pointer;
+            padding: 5px;
+            opacity: 0.6;
+            transition: opacity var(--transition-base);
+        }
+        
+        .remove-question:hover {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -439,6 +515,51 @@
                                placeholder="Senior Software Engineer">
                     </div>
                 </div>
+                
+                <!-- Advanced Settings Accordion -->
+                <details class="advanced-settings mb-4">
+                    <summary class="advanced-toggle">
+                        <i class="fas fa-cog"></i>
+                        Advanced Settings
+                    </summary>
+                    
+                    <div class="advanced-content">
+                        <!-- Voice Selection -->
+                        <div class="settings-section">
+                            <h4><i class="fas fa-microphone"></i> Voice Settings</h4>
+                            <div class="form-group">
+                                <label class="form-label">Interview Voice</label>
+                                <select class="form-control" id="voiceSelect">
+                                    <option value="EXAVITQu4vr4xnSDxMaL">Rachel - Professional Female</option>
+                                    <option value="pNInz6obpgDQGcFmaJgB">Adam - Professional Male</option>
+                                    <option value="21m00Tcm4TlvDq8ikWAM">Domi - Warm Female</option>
+                                    <option value="AZnzlk1XvdvUeBnXmlld">Sam - Friendly Male</option>
+                                    <option value="ThT5KcBeYPX3keUQqHPh">Dorothy - British Female</option>
+                                    <option value="IKne3meq5aSn9XLyUdCD">Charlie - Australian Male</option>
+                                </select>
+                                <button type="button" class="btn btn-sm btn-secondary mt-2" onclick="testVoice()">
+                                    <i class="fas fa-play"></i> Test Voice
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Question Customization -->
+                        <div class="settings-section">
+                            <h4><i class="fas fa-question-circle"></i> Interview Questions</h4>
+                            <p class="text-muted mb-3">Customize the questions for this interview (leave empty for defaults)</p>
+                            <div id="questionsContainer">
+                                <div class="question-item mb-3">
+                                    <label class="form-label">Question 1</label>
+                                    <textarea class="form-control question-input" rows="2" 
+                                              placeholder="Tell me about yourself and your professional background."></textarea>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="addQuestion()">
+                                <i class="fas fa-plus"></i> Add Question
+                            </button>
+                        </div>
+                    </div>
+                </details>
                 
                 <button type="submit" class="btn btn-primary btn-lg">
                     <i class="fas fa-magic"></i>
@@ -608,10 +729,18 @@
         async function createInterview(e) {
             e.preventDefault();
             
+            // Collect custom questions
+            const questionInputs = document.querySelectorAll('.question-input');
+            const customQuestions = Array.from(questionInputs)
+                .map(input => input.value.trim())
+                .filter(q => q.length > 0);
+            
             const formData = {
                 candidateName: document.getElementById('candidateName').value,
                 candidateEmail: document.getElementById('candidateEmail').value,
-                role: document.getElementById('role').value
+                role: document.getElementById('role').value,
+                voiceId: document.getElementById('voiceSelect').value,
+                customQuestions: customQuestions
             };
             
             showLoading();
@@ -639,6 +768,65 @@
             } finally {
                 hideLoading();
             }
+        }
+        
+        // Test voice function
+        async function testVoice() {
+            const voiceId = document.getElementById('voiceSelect').value;
+            const testText = "Hello! I'm your interviewer from Senbird. Let's have a great conversation today.";
+            
+            try {
+                const response = await fetch('/api/test-voice', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ voiceId, text: testText })
+                });
+                
+                const data = await response.json();
+                
+                if (data.audio) {
+                    const audio = new Audio(data.audio);
+                    audio.play();
+                } else {
+                    alert('Unable to test voice. Please check your ElevenLabs API key.');
+                }
+            } catch (error) {
+                console.error('Error testing voice:', error);
+                alert('Error testing voice.');
+            }
+        }
+        
+        // Add question function
+        let questionCount = 1;
+        function addQuestion() {
+            questionCount++;
+            const container = document.getElementById('questionsContainer');
+            const questionDiv = document.createElement('div');
+            questionDiv.className = 'question-item mb-3';
+            questionDiv.innerHTML = `
+                <label class="form-label">Question ${questionCount}</label>
+                <textarea class="form-control question-input" rows="2" 
+                          placeholder="Enter your custom question..."></textarea>
+                <button type="button" class="remove-question" onclick="removeQuestion(this)">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            container.appendChild(questionDiv);
+        }
+        
+        // Remove question function
+        function removeQuestion(button) {
+            button.parentElement.remove();
+            updateQuestionNumbers();
+        }
+        
+        // Update question numbers
+        function updateQuestionNumbers() {
+            const questions = document.querySelectorAll('.question-item');
+            questions.forEach((q, index) => {
+                q.querySelector('.form-label').textContent = `Question ${index + 1}`;
+            });
+            questionCount = questions.length;
         }
         
         // Copy interview link

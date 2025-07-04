@@ -32,7 +32,8 @@ const results = new Map();
 class AIInterviewer {
     constructor() {
         this.claudeApiKey = process.env.CLAUDE_API_KEY;
-        this.questions = [
+        // Default questions - can be customized per interview
+        this.defaultQuestions = [
             "Tell me about yourself and your professional background.",
             "What interests you most about this role?",
             "Describe a challenging project you've worked on recently.",
@@ -42,9 +43,15 @@ class AIInterviewer {
         ];
     }
     
-    async getNextQuestion(index) {
-        if (index < this.questions.length) {
-            return this.questions[index];
+    getQuestionsForRole(role, customQuestions) {
+        // Use custom questions if provided, otherwise use defaults
+        return customQuestions && customQuestions.length > 0 ? customQuestions : this.defaultQuestions;
+    }
+    
+    async getNextQuestion(index, questions) {
+        const questionSet = questions || this.defaultQuestions;
+        if (index < questionSet.length) {
+            return questionSet[index];
         }
         return null;
     }
@@ -58,11 +65,20 @@ class AIInterviewer {
             const Anthropic = require('@anthropic-ai/sdk');
             const anthropic = new Anthropic({ apiKey: this.claudeApiKey });
             
-            const prompt = `Based on this interview transcript for a ${role} position, provide:
-1. A score from 1-10
-2. A 2-3 sentence summary
-3. Key strengths (2-3 points)
-4. Areas for improvement (2-3 points)
+            const prompt = `You are evaluating a candidate for a ${role} position at Senbird.
+
+Based on this interview transcript, provide:
+1. A score from 1-10 (be fair but critical - 7-8 is excellent, 9-10 is exceptional)
+2. A 2-3 sentence summary focusing on role fit
+3. Key strengths relevant to the ${role} position (2-3 specific points)
+4. Areas for improvement (2-3 constructive points)
+
+Consider:
+- Technical skills mentioned for the role
+- Communication clarity and structure
+- Problem-solving approach
+- Cultural fit indicators
+- Relevant experience
 
 Transcript:
 ${transcript}
@@ -92,7 +108,13 @@ Respond in JSON format: { "score": 8, "summary": "...", "strengths": ["..."], "i
 class VoiceService {
     constructor() {
         this.apiKey = process.env.ELEVENLABS_API_KEY;
-        this.voiceId = 'EXAVITQu4vr4xnSDxMaL'; // Default voice
+        this.voiceId = process.env.ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL'; // Default voice Rachel
+        this.voiceSettings = {
+            stability: 0.75,
+            similarity_boost: 0.75,
+            style: 0.5,
+            use_speaker_boost: true
+        };
     }
     
     async generateSpeech(text) {
@@ -112,11 +134,8 @@ class VoiceService {
                     },
                     body: JSON.stringify({
                         text: text,
-                        model_id: 'eleven_monolingual_v1',
-                        voice_settings: {
-                            stability: 0.75,
-                            similarity_boost: 0.75
-                        }
+                        model_id: 'eleven_multilingual_v2',
+                        voice_settings: this.voiceSettings
                     })
                 }
             );
@@ -148,7 +167,7 @@ app.get('/', (req, res) => {
 
 // Create new interview
 app.post('/api/interviews/create', async (req, res) => {
-    const { candidateName, candidateEmail, role } = req.body;
+    const { candidateName, candidateEmail, role, voiceId, customQuestions } = req.body;
     const interviewId = uuidv4();
     
     const interview = {
@@ -156,6 +175,8 @@ app.post('/api/interviews/create', async (req, res) => {
         candidateName,
         candidateEmail,
         role,
+        voiceId: voiceId || 'EXAVITQu4vr4xnSDxMaL',
+        customQuestions: customQuestions || [],
         status: 'pending',
         createdAt: new Date().toISOString(),
         interviewUrl: `/interview/${interviewId}`
@@ -184,6 +205,22 @@ app.get('/api/results/:id', (req, res) => {
         res.json(result);
     } else {
         res.status(404).json({ error: 'Results not found' });
+    }
+});
+
+// Test voice endpoint
+app.post('/api/test-voice', async (req, res) => {
+    const { voiceId, text } = req.body;
+    
+    try {
+        const tempVoiceService = new VoiceService();
+        tempVoiceService.voiceId = voiceId;
+        const audio = await tempVoiceService.generateSpeech(text);
+        
+        res.json({ audio });
+    } catch (error) {
+        console.error('Error testing voice:', error);
+        res.status(500).json({ error: 'Failed to generate voice' });
     }
 });
 
@@ -220,6 +257,16 @@ io.on('connection', (socket) => {
         interview.status = 'active';
         interview.startedAt = new Date().toISOString();
         
+        // Configure voice for this interview
+        if (interview.voiceId) {
+            voiceService.voiceId = interview.voiceId;
+        }
+        
+        // Get questions for this interview
+        const questions = interview.customQuestions.length > 0 ? 
+            interview.customQuestions : 
+            aiInterviewer.defaultQuestions;
+        
         // Start interview with greeting
         const greeting = `Hello ${interview.candidateName}! I'm your interviewer from Senbird today. 
         I'll be asking you some questions about your background and experience for the ${interview.role} position. 
@@ -231,11 +278,12 @@ io.on('connection', (socket) => {
             interview,
             greeting,
             greetingAudio,
-            totalQuestions: aiInterviewer.questions.length
+            totalQuestions: questions.length
         });
         
         // Store session data
         socket.interviewId = interviewId;
+        socket.questions = questions;
         socket.questionIndex = -1;
         socket.transcript = [{
             speaker: 'AI',
@@ -249,7 +297,7 @@ io.on('connection', (socket) => {
         if (!socket.interviewId) return;
         
         socket.questionIndex++;
-        const question = await aiInterviewer.getNextQuestion(socket.questionIndex);
+        const question = await aiInterviewer.getNextQuestion(socket.questionIndex, socket.questions);
         
         if (question) {
             const audio = await voiceService.generateSpeech(question);
@@ -282,7 +330,7 @@ io.on('connection', (socket) => {
         
         socket.responses.push({
             questionIndex: socket.questionIndex,
-            question: aiInterviewer.questions[socket.questionIndex],
+            question: socket.questions[socket.questionIndex],
             response: text,
             timestamp: new Date().toISOString()
         });

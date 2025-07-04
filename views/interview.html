@@ -18,8 +18,8 @@
     <style>
         /* Interview Room Specific Styles */
         body {
-            background: linear-gradient(135deg, var(--charcoal) 0%, #1a1a1a 100%);
-            color: var(--white);
+            background: linear-gradient(135deg, var(--light) 0%, var(--white) 100%);
+            color: var(--dark);
             height: 100vh;
             overflow: hidden;
         }
@@ -81,22 +81,29 @@
             width: 200px;
             height: 200px;
             margin: 0 auto var(--space-xl);
-            background: linear-gradient(135deg, var(--sage) 0%, var(--forest-green) 100%);
+            background: var(--white);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 80px;
             position: relative;
-            box-shadow: 0 20px 60px rgba(103, 137, 72, 0.3);
+            box-shadow: 0 20px 60px rgba(210, 58, 47, 0.2);
             transition: all var(--transition-base);
+            border: 4px solid var(--primary);
+            overflow: hidden;
+        }
+        
+        .ai-avatar img {
+            width: 70%;
+            height: 70%;
+            object-fit: contain;
         }
         
         .ai-avatar::before {
             content: '';
             position: absolute;
             inset: -20px;
-            background: radial-gradient(circle, var(--sage) 0%, transparent 70%);
+            background: radial-gradient(circle, var(--primary) 0%, transparent 70%);
             border-radius: 50%;
             opacity: 0;
             transition: opacity var(--transition-slow);
@@ -109,7 +116,8 @@
         
         .ai-avatar.speaking {
             transform: scale(1.05);
-            box-shadow: 0 25px 80px rgba(103, 137, 72, 0.4);
+            box-shadow: 0 25px 80px rgba(210, 58, 47, 0.3);
+            border-color: var(--primary-light);
         }
         
         @keyframes pulse {
@@ -120,15 +128,15 @@
         .ai-message {
             max-width: 700px;
             margin: 0 auto;
-            background: var(--glass);
-            backdrop-filter: blur(20px);
+            background: var(--white);
             padding: var(--space-xl);
             border-radius: var(--radius-xl);
-            box-shadow: var(--shadow-xl);
+            box-shadow: var(--shadow-lg);
             min-height: 100px;
             display: flex;
             align-items: center;
             justify-content: center;
+            border: 1px solid var(--dark-05);
         }
         
         .ai-text {
@@ -150,7 +158,7 @@
             background: var(--dark);
             border-radius: var(--radius-lg);
             overflow: hidden;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
             border: 3px solid var(--dark-20);
             transition: all var(--transition-base);
         }
@@ -184,15 +192,14 @@
             bottom: var(--space-2xl);
             left: 50%;
             transform: translateX(-50%);
-            background: var(--glass);
-            backdrop-filter: blur(20px);
+            background: var(--white);
             padding: var(--space-sm) var(--space-xl);
             border-radius: var(--radius-full);
             display: none;
             align-items: center;
             gap: var(--space-sm);
             box-shadow: var(--shadow-lg);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid var(--dark-10);
         }
         
         .listening-indicator.active {
@@ -227,35 +234,35 @@
         
         /* Controls */
         .controls {
-            background: var(--glass);
-            backdrop-filter: blur(20px);
+            background: var(--white);
             padding: var(--space-lg);
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-top: 1px solid var(--dark-05);
             display: flex;
             justify-content: center;
             gap: var(--space-lg);
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
         }
         
         .control-btn {
             width: 56px;
             height: 56px;
             border-radius: var(--radius-full);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            background: var(--glass);
-            backdrop-filter: blur(20px);
-            color: var(--white);
+            border: 2px solid var(--dark-10);
+            background: var(--white);
+            color: var(--dark);
             font-size: 1.5rem;
             cursor: pointer;
             transition: all var(--transition-base);
             display: flex;
             align-items: center;
             justify-content: center;
+            box-shadow: var(--shadow-sm);
         }
         
         .control-btn:hover {
             transform: translateY(-2px);
-            box-shadow: var(--shadow-lg);
-            border-color: rgba(255, 255, 255, 0.4);
+            box-shadow: var(--shadow-md);
+            border-color: var(--primary);
         }
         
         .control-btn.active {
@@ -271,18 +278,18 @@
         /* Sidebar */
         .sidebar {
             width: 420px;
-            background: var(--glass);
-            backdrop-filter: blur(30px);
-            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            background: var(--white);
+            border-left: 1px solid var(--dark-05);
             display: flex;
             flex-direction: column;
             color: var(--dark);
+            box-shadow: -4px 0 20px rgba(0, 0, 0, 0.05);
         }
         
         .sidebar-header {
             padding: var(--space-xl);
-            background: rgba(255, 255, 255, 0.05);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: var(--light);
+            border-bottom: 1px solid var(--dark-05);
         }
         
         .sidebar-title {
@@ -347,11 +354,13 @@
         }
         
         .transcript-avatar.ai {
-            background: linear-gradient(135deg, var(--sage) 0%, var(--forest-green) 100%);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: var(--white);
         }
         
         .transcript-avatar.candidate {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--crimson) 100%);
+            background: linear-gradient(135deg, var(--sage) 0%, var(--forest-green) 100%);
+            color: var(--white);
         }
         
         .transcript-speaker {
@@ -388,8 +397,8 @@
         /* Status Bar */
         .status-bar {
             padding: var(--space-md);
-            background: rgba(255, 255, 255, 0.05);
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            background: var(--light);
+            border-top: 1px solid var(--dark-05);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -420,7 +429,7 @@
         .loading-screen {
             position: fixed;
             inset: 0;
-            background: linear-gradient(135deg, var(--charcoal) 0%, #1a1a1a 100%);
+            background: linear-gradient(135deg, var(--light) 0%, var(--white) 100%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -450,21 +459,18 @@
             font-family: var(--font-display);
             font-size: 2rem;
             margin-bottom: var(--space-md);
-            background: linear-gradient(135deg, var(--white) 0%, var(--light) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: var(--dark);
         }
         
         .loading-subtitle {
-            color: rgba(255, 255, 255, 0.7);
+            color: var(--dark-70);
             margin-bottom: var(--space-2xl);
         }
         
         .loading-spinner {
             width: 60px;
             height: 60px;
-            border: 3px solid rgba(255, 255, 255, 0.1);
+            border: 3px solid var(--dark-10);
             border-top-color: var(--primary);
             border-radius: 50%;
             animation: spin 1s linear infinite;
@@ -629,7 +635,7 @@
             <div class="video-area">
                 <div class="ai-presence">
                     <div class="ai-avatar" id="aiAvatar">
-                        <i class="fas fa-robot"></i>
+                        <img src="/images/logo.png" alt="Senbird" />
                     </div>
                     <div class="ai-message glass">
                         <p class="ai-text" id="aiText">
