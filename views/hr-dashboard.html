@@ -287,6 +287,34 @@
             background: var(--dark-10);
         }
         
+        /* Alert Styles */
+        .alert {
+            padding: 12px 16px;
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .alert-success {
+            background: rgba(103, 137, 72, 0.1);
+            color: var(--success);
+            border: 1px solid rgba(103, 137, 72, 0.2);
+        }
+        
+        .alert-warning {
+            background: rgba(246, 195, 68, 0.1);
+            color: var(--warning);
+            border: 1px solid rgba(246, 195, 68, 0.2);
+        }
+        
+        .alert-danger {
+            background: rgba(206, 42, 43, 0.1);
+            color: var(--error);
+            border: 1px solid rgba(206, 42, 43, 0.2);
+        }
+        
         /* Empty State */
         .empty-state {
             text-align: center;
@@ -716,17 +744,29 @@
             
             <form id="settingsForm">
                 <div class="form-group">
-                    <label class="form-label">ElevenLabs API Key</label>
-                    <input type="password" class="form-control" id="elevenLabsKey" 
-                           placeholder="Enter your ElevenLabs API key">
-                    <small class="text-muted">Used for voice synthesis in interviews</small>
+                    <label class="form-label">OpenAI API Key</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="password" class="form-control" id="openAIKey" 
+                               placeholder="Enter your OpenAI API key" style="flex: 1;">
+                        <button type="button" class="btn btn-secondary" onclick="testAPIConnection('openai')" id="testOpenAIBtn">
+                            <i class="fas fa-plug"></i> Test
+                        </button>
+                    </div>
+                    <small class="text-muted">Used for AI-powered interview questions and analysis</small>
+                    <div id="openaiTestResult" style="margin-top: 10px; display: none;"></div>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">OpenAI API Key</label>
-                    <input type="password" class="form-control" id="openAIKey" 
-                           placeholder="Enter your OpenAI API key">
-                    <small class="text-muted">Used for AI-powered interview questions and analysis</small>
+                    <label class="form-label">ElevenLabs API Key</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="password" class="form-control" id="elevenLabsKey" 
+                               placeholder="Enter your ElevenLabs API key" style="flex: 1;">
+                        <button type="button" class="btn btn-secondary" onclick="testAPIConnection('elevenlabs')" id="testElevenLabsBtn">
+                            <i class="fas fa-plug"></i> Test
+                        </button>
+                    </div>
+                    <small class="text-muted">Used for voice synthesis in interviews</small>
+                    <div id="elevenlabsTestResult" style="margin-top: 10px; display: none;"></div>
                 </div>
                 
                 <div class="text-center mt-4">
@@ -872,7 +912,16 @@
         function renderInterviews(interviews) {
             const container = document.getElementById('interviewsList');
             
-            if (interviews.length === 0) {
+            if (!interviews || interviews.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="fas fa-calendar-plus"></i>
+                        </div>
+                        <h4>No interviews yet</h4>
+                        <p class="text-muted">Create your first interview to get started</p>
+                    </div>
+                `;
                 return;
             }
             
@@ -881,7 +930,7 @@
                     <div class="interview-info">
                         <div class="interview-name">${interview.candidateName}</div>
                         <div class="interview-details">
-                            ${interview.role} • ${formatDate(interview.createdAt)}
+                            ${interview.role} • ${formatDate(interview.createdAt || new Date())}
                             ${getStatusBadge(interview.status)}
                         </div>
                     </div>
@@ -973,7 +1022,22 @@
             const voiceId = document.getElementById('voiceSelect').value;
             const testText = "Hello! I'm your interviewer from Senbird. Let's have a great conversation today.";
             
+            // First ensure we have saved API key
+            const elevenLabsKey = document.getElementById('elevenLabsKey').value;
+            if (!elevenLabsKey) {
+                alert('Please enter your ElevenLabs API key first and save settings.');
+                return;
+            }
+            
             try {
+                // Save the API key first
+                await fetch('/api/settings/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ elevenlabs_api_key: elevenLabsKey })
+                });
+                
+                // Then test the voice
                 const response = await fetch('/api/test-voice', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -988,6 +1052,7 @@
                 
                 if (data.audio) {
                     const audio = new Audio(data.audio);
+                    audio.volume = 0.8;
                     await audio.play();
                     console.log('Voice test successful');
                 } else {
@@ -1360,13 +1425,21 @@
         }
         
         // Load settings from localStorage
-        function loadSettings() {
-            const settings = JSON.parse(localStorage.getItem('apiSettings') || '{}');
-            if (settings.elevenLabsKey) {
-                document.getElementById('elevenLabsKey').value = settings.elevenLabsKey;
-            }
-            if (settings.openAIKey) {
-                document.getElementById('openAIKey').value = settings.openAIKey;
+        async function loadSettings() {
+            try {
+                // Check server for configured keys
+                const response = await fetch('/api/settings/check');
+                const config = await response.json();
+                
+                // Show placeholders if configured
+                if (config.openai) {
+                    document.getElementById('openAIKey').placeholder = 'OpenAI API key is configured';
+                }
+                if (config.elevenlabs) {
+                    document.getElementById('elevenLabsKey').placeholder = 'ElevenLabs API key is configured';
+                }
+            } catch (error) {
+                console.error('Error loading settings:', error);
             }
         }
         
@@ -1375,25 +1448,94 @@
             e.preventDefault();
             
             const settings = {
-                elevenLabsKey: document.getElementById('elevenLabsKey').value,
-                openAIKey: document.getElementById('openAIKey').value
+                elevenlabs_api_key: document.getElementById('elevenLabsKey').value,
+                openai_api_key: document.getElementById('openAIKey').value
             };
             
-            localStorage.setItem('apiSettings', JSON.stringify(settings));
-            
-            // You might want to send these to the backend as well
+            // Save to server
             try {
-                await fetch('/api/settings', {
+                const response = await fetch('/api/settings/save', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(settings)
                 });
+                
+                if (response.ok) {
+                    showToast('Settings saved successfully!');
+                    closeSettingsModal();
+                } else {
+                    throw new Error('Failed to save settings');
+                }
             } catch (error) {
-                console.error('Error saving settings to server:', error);
+                console.error('Error saving settings:', error);
+                alert('Failed to save settings. Please try again.');
+            }
+        }
+        
+        // Test API Connection
+        async function testAPIConnection(service) {
+            const buttonId = service === 'openai' ? 'testOpenAIBtn' : 'testElevenLabsBtn';
+            const resultId = service === 'openai' ? 'openaiTestResult' : 'elevenlabsTestResult';
+            const button = document.getElementById(buttonId);
+            const resultDiv = document.getElementById(resultId);
+            
+            // Save current settings first
+            const apiKey = service === 'openai' 
+                ? document.getElementById('openAIKey').value 
+                : document.getElementById('elevenLabsKey').value;
+                
+            if (!apiKey) {
+                resultDiv.innerHTML = '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> Please enter an API key first</div>';
+                resultDiv.style.display = 'block';
+                return;
             }
             
-            showToast('Settings saved successfully!');
-            closeSettingsModal();
+            // Show loading state
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+            
+            try {
+                // First save the API key
+                const settings = {};
+                if (service === 'openai') {
+                    settings.openai_api_key = apiKey;
+                } else {
+                    settings.elevenlabs_api_key = apiKey;
+                }
+                
+                await fetch('/api/settings/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(settings)
+                });
+                
+                // Then test the connection
+                const response = await fetch('/api/test-connection', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ service })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `<div class="alert alert-success"><i class="fas fa-check-circle"></i> ${data.message}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="alert alert-danger"><i class="fas fa-times-circle"></i> ${data.error}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="alert alert-danger"><i class="fas fa-times-circle"></i> Connection test failed: ${error.message}</div>`;
+            }
+            
+            // Reset button
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-plug"></i> Test';
+            resultDiv.style.display = 'block';
+            
+            // Hide result after 5 seconds
+            setTimeout(() => {
+                resultDiv.style.display = 'none';
+            }, 5000);
         }
         
         // Auto refresh every 30 seconds

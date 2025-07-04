@@ -257,6 +257,13 @@ class VoiceService {
             return null;
         }
         
+        if (!this.voiceId) {
+            console.error('No voice ID specified');
+            return null;
+        }
+        
+        console.log('Generating speech for:', text.substring(0, 50) + '...');
+        
         try {
             const response = await fetch(
                 `https://api.elevenlabs.io/v1/text-to-speech/${this.voiceId}`,
@@ -275,14 +282,17 @@ class VoiceService {
             );
             
             if (!response.ok) {
-                throw new Error('Voice generation failed');
+                const errorText = await response.text();
+                console.error('ElevenLabs API error:', response.status, errorText);
+                throw new Error(`Voice generation failed: ${response.status}`);
             }
             
             const audioBuffer = await response.arrayBuffer();
             const audioBase64 = Buffer.from(audioBuffer).toString('base64');
+            console.log('Voice generated successfully, size:', audioBase64.length);
             return `data:audio/mpeg;base64,${audioBase64}`;
         } catch (error) {
-            console.error('Voice generation error:', error);
+            console.error('Voice generation error:', error.message);
             return null;
         }
     }
@@ -317,6 +327,12 @@ app.post('/api/interviews/create', async (req, res) => {
     };
     
     interviews.set(interviewId, interview);
+    
+    console.log('Interview created:', {
+        id: interviewId,
+        voiceId: interview.voiceId,
+        hasQuestions: interview.customQuestions.length > 0
+    });
     
     res.json({
         success: true,
@@ -410,6 +426,70 @@ app.get('/api/settings/check', (req, res) => {
         elevenlabs: !!appConfig.elevenlabs_api_key,
         voice_id: appConfig.elevenlabs_voice_id
     });
+});
+
+// Test API connections
+app.post('/api/test-connection', async (req, res) => {
+    const { service } = req.body;
+    
+    try {
+        if (service === 'openai') {
+            if (!appConfig.openai_api_key) {
+                return res.status(400).json({ success: false, error: 'OpenAI API key not configured' });
+            }
+            
+            const openai = aiInterviewer.getOpenAIClient();
+            if (!openai) {
+                return res.status(400).json({ success: false, error: 'Failed to initialize OpenAI client' });
+            }
+            
+            // Test with a simple completion
+            const response = await openai.chat.completions.create({
+                model: 'gpt-4',
+                messages: [{ role: 'user', content: 'Say "connection successful" in 3 words.' }],
+                max_tokens: 10
+            });
+            
+            res.json({ 
+                success: true, 
+                message: 'OpenAI connection successful',
+                response: response.choices[0].message.content 
+            });
+            
+        } else if (service === 'elevenlabs') {
+            if (!appConfig.elevenlabs_api_key) {
+                return res.status(400).json({ success: false, error: 'ElevenLabs API key not configured' });
+            }
+            
+            // Test ElevenLabs by checking voices endpoint
+            const response = await fetch('https://api.elevenlabs.io/v1/voices', {
+                headers: {
+                    'xi-api-key': appConfig.elevenlabs_api_key
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`API returned ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            res.json({ 
+                success: true, 
+                message: 'ElevenLabs connection successful',
+                voiceCount: data.voices ? data.voices.length : 0
+            });
+            
+        } else {
+            res.status(400).json({ success: false, error: 'Invalid service specified' });
+        }
+    } catch (error) {
+        console.error(`Error testing ${service} connection:`, error);
+        res.status(500).json({ 
+            success: false, 
+            error: `Failed to connect to ${service}: ${error.message}` 
+        });
+    }
 });
 
 // ===== TEMPLATE ENDPOINTS =====
@@ -561,6 +641,12 @@ io.on('connection', (socket) => {
         if (interview.voiceId) {
             voiceService.voiceId = interview.voiceId;
         }
+        
+        console.log('Interview session started:', {
+            interviewId,
+            voiceId: voiceService.voiceId,
+            hasElevenLabsKey: !!appConfig.elevenlabs_api_key
+        });
         
         // Get questions for this interview
         const questions = interview.customQuestions.length > 0 ? 
