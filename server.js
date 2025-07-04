@@ -186,12 +186,85 @@ class AIInterviewer {
     
     getQuestionsForRole(role, customQuestions) {
         // Use custom questions if provided, otherwise use defaults
-        return customQuestions && customQuestions.length > 0 ? customQuestions : this.defaultQuestions;
+        let questions = customQuestions && customQuestions.length > 0 ? customQuestions : this.defaultQuestions;
+        
+        // Clean all questions to ensure they're single questions
+        questions = questions.map(q => this.cleanQuestion(q));
+        
+        console.log('Prepared questions for interview:', questions);
+        return questions;
+    }
+    
+    // Helper to clean and split compound questions
+    cleanQuestion(question) {
+        // Remove multiple question marks and split compound questions
+        // Example: "Tell me about X? How did you Y? What was Z?" → "Tell me about X"
+        
+        // First, check if this is a compound question with multiple sentences ending in ?
+        const questionParts = question.split('?').filter(part => part.trim());
+        
+        if (questionParts.length > 1) {
+            // Take only the first question
+            let mainQuestion = questionParts[0].trim() + '?';
+            console.log('Split compound question:', question, '→', mainQuestion);
+            return mainQuestion;
+        }
+        
+        // Also check for questions separated by periods
+        const sentences = question.split(/[.!]+/).filter(s => s.trim());
+        if (sentences.length > 1 && sentences[0].length > 20) {
+            let mainQuestion = sentences[0].trim();
+            if (!mainQuestion.endsWith('?')) {
+                mainQuestion += '?';
+            }
+            console.log('Split multi-sentence question:', question, '→', mainQuestion);
+            return mainQuestion;
+        }
+        
+        return question.trim();
+    }
+    
+    // Filter out any meta-instructions that might leak into responses
+    filterMetaInstructions(text) {
+        // Patterns that indicate meta-instructions
+        const metaPatterns = [
+            /make it feel like/gi,
+            /keep it natural/gi,
+            /be professional/gi,
+            /maintain.*demeanor/gi,
+            /1-3 sentences/gi,
+            /brief acknowledgment/gi,
+            /transition to/gi,
+            /as an interviewer/gi,
+            /your task is/gi,
+            /remember to/gi,
+            /make sure to/gi,
+            /follow.*instruction/gi,
+            /[\(\[].*instructions?.*[\)\]]/gi
+        ];
+        
+        let filtered = text;
+        metaPatterns.forEach(pattern => {
+            if (pattern.test(filtered)) {
+                console.log('Filtering meta-instruction:', filtered.match(pattern));
+                filtered = filtered.replace(pattern, '');
+            }
+        });
+        
+        // Clean up any double spaces or weird punctuation left behind
+        filtered = filtered.replace(/\s+/g, ' ').trim();
+        filtered = filtered.replace(/\s+([.?!,])/g, '$1');
+        filtered = filtered.replace(/^[,.]\s*/, '');
+        
+        return filtered;
     }
     
     async getNextQuestion(index, questions, interviewId, previousResponse, jobDescription = '') {
         const questionSet = questions || this.defaultQuestions;
         if (index < questionSet.length) {
+            // Clean the question to ensure we only ask one thing at a time
+            const rawQuestion = questionSet[index];
+            const cleanedQuestion = this.cleanQuestion(rawQuestion);
             // Get conversation context
             const history = this.conversationHistory.get(interviewId) || [];
             
@@ -242,16 +315,17 @@ class AIInterviewer {
                         systemPrompt += `Embody these traits: ${guidelines.personality_traits.join(', ')}. `;
                     }
                     
-                    systemPrompt += `\n\nAcknowledge their response naturally and transition to the next question. 
-                    Make it feel like a real conversation, not a scripted interview. 
-                    Keep acknowledgment to 1-3 sentences.${jobContext}`;
-                    
-                    if (guidelines.customInstructions) {
-                        systemPrompt += `\n\nAdditional instructions: ${guidelines.customInstructions}`;
-                    }
+                    // Simpler prompt to prevent instruction leakage
+                    systemPrompt = `You are conducting an interview. Be ${guidelines.style}.\n\nYour response should:
+1. Briefly acknowledge what the candidate just said (1 sentence)
+2. Then ask the next question
+
+Do NOT include multiple questions or sub-questions.
+Do NOT explain what you're doing.
+Just acknowledge and ask the single question.`;
                     
                     const response = await openai.chat.completions.create({
-                        model: 'gpt-4o', // Fast, multimodal model for real-time voice interactions
+                        model: 'gpt-4o',
                         messages: [
                             {
                                 role: 'system',
@@ -259,20 +333,32 @@ class AIInterviewer {
                             },
                             {
                                 role: 'user',
-                                content: `Previous question: ${questionSet[index-1]}\n\nCandidate's response: ${previousResponse}\n\nNext question to ask: ${questionSet[index]}\n\nProvide a natural transition that acknowledges their answer and leads into the next question.`
+                                content: `Candidate just said: "${previousResponse}"\n\nNext question: "${cleanedQuestion}"\n\nAcknowledge briefly, then ask the question.`
                             }
                         ],
-                        max_tokens: 200,
-                        temperature: 0.8
+                        max_tokens: 150,
+                        temperature: 0.6 // Lower for more controlled output
                     });
                     
-                    return response.choices[0].message.content;
+                    let generatedResponse = response.choices[0].message.content;
+                    
+                    // Post-process to remove any leaked instructions
+                    generatedResponse = this.filterMetaInstructions(generatedResponse);
+                    
+                    // Ensure the cleaned question is included if it got lost
+                    if (!generatedResponse.includes(cleanedQuestion.replace('?', ''))) {
+                        console.warn('Question missing from response, appending it');
+                        generatedResponse += ' ' + cleanedQuestion;
+                    }
+                    
+                    return generatedResponse;
                 } catch (error) {
                     console.error('Error generating conversational response:', error);
                 }
             }
             
-            return questionSet[index];
+            // For the first question or if AI generation fails
+            return cleanedQuestion;
         }
         return null;
     }
@@ -385,13 +471,29 @@ class AIInterviewer {
             return null;
         }
         
-        // Adjust probability based on response length and depth settings
+        // Don't follow up on very short responses (likely "I don't know" or similar)
+        if (response.length < 30) {
+            return null;
+        }
+        
+        // Adjust probability based on response completeness
         let shouldFollowUp = Math.random() < guidelines.followUpFrequency;
         
-        if (response.length < 50 && guidelines.followUpDepth === 'deep') {
-            shouldFollowUp = true; // Always follow up on very short answers
-        } else if (response.length > 300 && guidelines.followUpDepth === 'surface') {
-            shouldFollowUp = false; // Don't follow up on detailed answers
+        // Check if the response seems incomplete or vague
+        const vagueIndicators = [
+            'maybe', 'i guess', 'sort of', 'kind of', 'probably',
+            'i think', 'not sure', 'hard to say'
+        ];
+        
+        const hasVagueLanguage = vagueIndicators.some(indicator => 
+            response.toLowerCase().includes(indicator)
+        );
+        
+        // Check if response lacks specifics
+        const hasSpecifics = /\\d+|%|\\$|specific|example|instance/i.test(response);
+        
+        if (hasVagueLanguage && !hasSpecifics && guidelines.followUpDepth !== 'surface') {
+            shouldFollowUp = true;
         }
         
         if (!shouldFollowUp) {
@@ -399,30 +501,21 @@ class AIInterviewer {
         }
         
         try {
-            const history = this.conversationHistory.get(interviewId) || [];
+            // Much simpler prompt to generate natural follow-ups
+            const systemPrompt = `You are conducting an interview. The candidate just answered a question.
             
-            // Build follow-up prompt based on guidelines
-            let systemPrompt = `You are a ${guidelines.style} interviewer. `;
-            
-            if (guidelines.clarificationStyle === 'gentle') {
-                systemPrompt += 'Ask gentle, non-confrontational follow-up questions. ';
-            } else if (guidelines.clarificationStyle === 'direct') {
-                systemPrompt += 'Ask direct, specific follow-up questions. ';
-            } else if (guidelines.clarificationStyle === 'persistent') {
-                systemPrompt += 'Be persistent in getting detailed information. ';
-            }
-            
-            systemPrompt += `Based on the candidate's response, generate a brief follow-up question that:
-            - Probes deeper into their answer
-            - Asks for specific examples if they gave general answers
-            - Clarifies any vague points
-            - Shows genuine interest in their experience
-            
-            If the answer is already complete and detailed, return "NO_FOLLOWUP".
-            Keep the follow-up natural and conversational.`;
+Based on their specific answer, ask ONE natural follow-up question that:
+- Relates directly to what they just said
+- Asks for a specific example OR clarification
+- Is brief and conversational
+
+If their answer is already detailed and complete, respond with exactly: "NO_FOLLOWUP"
+
+Do NOT ask multiple questions.
+Do NOT include any instructions or explanations.`;
             
             const completion = await openai.chat.completions.create({
-                model: 'gpt-4o', // Fast model for real-time follow-up questions
+                model: 'gpt-4o',
                 messages: [
                     {
                         role: 'system',
@@ -430,15 +523,34 @@ class AIInterviewer {
                     },
                     {
                         role: 'user',
-                        content: `Question asked: ${question}\n\nCandidate's response: ${response}\n\nGenerate an appropriate follow-up question or return NO_FOLLOWUP.`
+                        content: `Original question: "${question}"
+                        
+Their answer: "${response}"
+
+Generate ONE follow-up question or NO_FOLLOWUP.`
                     }
                 ],
-                max_tokens: 100,
+                max_tokens: 80,
                 temperature: 0.7
             });
             
-            const followUp = completion.choices[0].message.content;
-            return followUp.toLowerCase().includes('no_followup') ? null : followUp;
+            let followUp = completion.choices[0].message.content.trim();
+            
+            // Filter any meta-instructions
+            followUp = this.filterMetaInstructions(followUp);
+            
+            // Check if it's a no-followup response
+            if (followUp.toLowerCase().includes('no_followup') || followUp.length < 10) {
+                return null;
+            }
+            
+            // Ensure it's actually a question
+            if (!followUp.includes('?')) {
+                followUp += '?';
+            }
+            
+            console.log('Generated follow-up:', followUp);
+            return followUp;
         } catch (error) {
             console.error('Error generating follow-up:', error);
             return null;
@@ -1202,10 +1314,11 @@ io.on('connection', (socket) => {
             hasElevenLabsKey: !!appConfig.elevenlabs_api_key
         });
         
-        // Get questions for this interview
-        const questions = interview.customQuestions.length > 0 ? 
-            interview.customQuestions : 
-            aiInterviewer.defaultQuestions;
+        // Get questions for this interview (cleaned to ensure single questions)
+        const questions = aiInterviewer.getQuestionsForRole(
+            interview.role, 
+            interview.customQuestions
+        );
         
         // Start interview with greeting
         const greeting = `Hello ${interview.candidateName}! I'm your interviewer from Senbird today. 
