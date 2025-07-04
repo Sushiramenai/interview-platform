@@ -1561,12 +1561,12 @@ io.on('connection', (socket) => {
                 
                 const ackAudio = await voiceService.generateSpeech(ack);
                 
-                // Send acknowledgment but DON'T move to next question
+                // Send acknowledgment and move to next question after a brief pause
                 socket.emit('ai-acknowledgment', {
                     text: ack,
                     audio: ackAudio,
-                    moveToNext: false,  // Don't move to next question
-                    waitTime: 0  // No automatic progression
+                    moveToNext: true,  // Always move to next question after acknowledging
+                    waitTime: 3000  // Wait 3 seconds after acknowledgment before next question
                 });
                 
                 socket.transcript.push({
@@ -1577,7 +1577,7 @@ io.on('connection', (socket) => {
                 
                 aiInterviewer.updateConversationHistory(socket.interviewId, 'AI', ack);
             } else {
-                // For very short responses, just wait for more without acknowledging
+                // For very short responses, wait for more
                 console.log('Short response received, waiting for candidate to continue...');
                 // Don't send any response - let them continue talking
             }
