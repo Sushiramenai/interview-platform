@@ -32,7 +32,7 @@ async function testOpenAI(apiKey) {
         const openai = new OpenAI({ apiKey });
         
         const response = await openai.chat.completions.create({
-            model: 'gpt-4',
+            model: 'gpt-4o', // Using fast model for testing
             messages: [
                 { role: 'system', content: 'You are a helpful assistant.' },
                 { role: 'user', content: 'Say "OpenAI is working!" in exactly 5 words.' }

@@ -18,32 +18,11 @@
     <style>
         /* Interview Room Specific Styles */
         body {
-            background: #0a0a0a;
-            color: var(--white);
+            background: linear-gradient(135deg, var(--light) 0%, var(--white) 100%);
+            color: var(--dark);
             height: 100vh;
             overflow: hidden;
             position: relative;
-        }
-        
-        /* Animated background */
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: 
-                radial-gradient(circle at 20% 50%, rgba(210, 58, 47, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 80% 80%, rgba(107, 142, 90, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 40% 20%, rgba(159, 181, 149, 0.05) 0%, transparent 50%);
-            animation: gradientShift 20s ease-in-out infinite;
-            z-index: 0;
-        }
-        
-        @keyframes gradientShift {
-            0%, 100% { transform: scale(1) rotate(0deg); }
-            50% { transform: scale(1.2) rotate(180deg); }
         }
         
         /* Logo in Interview Room */
@@ -52,27 +31,22 @@
             top: var(--space-xl);
             left: var(--space-xl);
             z-index: 10;
-            backdrop-filter: blur(10px);
-            background: rgba(255, 255, 255, 0.05);
-            padding: var(--space-sm) var(--space-lg);
-            border-radius: var(--radius-full);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all var(--transition-base);
+            opacity: 0.9;
         }
         
         .interview-logo:hover {
-            background: rgba(255, 255, 255, 0.1);
             transform: translateY(-2px);
+            opacity: 1;
         }
         
         .interview-logo .logo-img {
-            width: 36px;
-            height: 36px;
+            width: 40px;
+            height: 40px;
         }
         
         .interview-logo .logo-text {
-            font-size: 1.125rem;
-            color: var(--white);
+            font-size: 1.25rem;
+            color: var(--dark);
             font-weight: 600;
         }
         
@@ -102,22 +76,6 @@
             min-height: 0;
         }
         
-        /* Decorative grid pattern */
-        .video-area::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-image: 
-                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
-            background-size: 50px 50px;
-            pointer-events: none;
-            opacity: 0.5;
-        }
-        
         /* AI Avatar Section */
         .ai-presence {
             text-align: center;
@@ -127,72 +85,51 @@
         }
         
         .ai-avatar {
-            width: 180px;
-            height: 180px;
-            margin: 0 auto var(--space-2xl);
-            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
-            backdrop-filter: blur(20px);
+            width: 200px;
+            height: 200px;
+            margin: 0 auto var(--space-xl);
+            background: var(--white);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             position: relative;
-            box-shadow: 
-                0 0 0 1px rgba(255,255,255,0.1),
-                0 20px 60px rgba(0,0,0,0.3),
-                inset 0 0 20px rgba(255,255,255,0.05);
+            box-shadow: 0 20px 60px rgba(210, 58, 47, 0.2);
             transition: all var(--transition-base);
+            border: 4px solid var(--primary);
             overflow: hidden;
         }
         
         .ai-avatar img {
-            width: 60%;
-            height: 60%;
+            width: 70%;
+            height: 70%;
             object-fit: contain;
-            filter: brightness(1.2);
         }
         
-        /* Animated rings */
-        .ai-avatar::before,
-        .ai-avatar::after {
+        .ai-avatar::before {
             content: '';
             position: absolute;
-            border-radius: 50%;
-            border: 2px solid rgba(210, 58, 47, 0.3);
             inset: -20px;
+            background: radial-gradient(circle, var(--primary) 0%, transparent 70%);
+            border-radius: 50%;
             opacity: 0;
-            transform: scale(0.8);
-            transition: all var(--transition-slow);
+            transition: opacity var(--transition-slow);
         }
         
-        .ai-avatar::after {
-            inset: -40px;
-            border-color: rgba(159, 181, 149, 0.2);
-            animation-delay: 0.5s;
-        }
-        
-        .ai-avatar.speaking::before,
-        .ai-avatar.speaking::after {
-            animation: ripple 2s ease-out infinite;
+        .ai-avatar.speaking::before {
+            animation: pulse 2s ease-in-out infinite;
+            opacity: 0.3;
         }
         
         .ai-avatar.speaking {
             transform: scale(1.05);
-            box-shadow: 
-                0 0 0 1px rgba(210, 58, 47, 0.3),
-                0 25px 80px rgba(210, 58, 47, 0.2),
-                inset 0 0 30px rgba(210, 58, 47, 0.1);
+            box-shadow: 0 25px 80px rgba(210, 58, 47, 0.3);
+            border-color: var(--primary-light);
         }
         
-        @keyframes ripple {
-            0% { 
-                transform: scale(0.8); 
-                opacity: 1;
-            }
-            100% { 
-                transform: scale(1.4); 
-                opacity: 0;
-            }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.3; }
+            50% { transform: scale(1.2); opacity: 0.1; }
         }
         
         .ai-message {
@@ -221,44 +158,21 @@
         /* Candidate Video */
         .candidate-video {
             position: absolute;
-            bottom: var(--space-2xl);
-            right: var(--space-2xl);
-            width: 280px;
-            height: 210px;
-            background: rgba(0, 0, 0, 0.8);
+            bottom: var(--space-xl);
+            right: var(--space-xl);
+            width: 320px;
+            height: 240px;
+            background: var(--dark);
             border-radius: var(--radius-lg);
             overflow: hidden;
-            box-shadow: 
-                0 0 0 1px rgba(255,255,255,0.1),
-                0 10px 40px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            border: 3px solid var(--dark-20);
             transition: all var(--transition-base);
-            backdrop-filter: blur(10px);
-        }
-        
-        .candidate-video::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, 
-                transparent, 
-                rgba(210, 58, 47, 0.5), 
-                transparent);
-            animation: scanline 3s linear infinite;
-        }
-        
-        @keyframes scanline {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
         }
         
         .candidate-video:hover {
-            transform: scale(1.02) translateY(-5px);
-            box-shadow: 
-                0 0 0 1px rgba(210, 58, 47, 0.3),
-                0 15px 50px rgba(0, 0, 0, 0.6);
+            transform: scale(1.05);
+            border-color: var(--primary);
         }
         
         #localVideo {
@@ -272,48 +186,28 @@
             position: absolute;
             bottom: var(--space-sm);
             left: var(--space-sm);
-            background: rgba(0, 0, 0, 0.7);
-            padding: var(--space-xs) var(--space-md);
+            background: var(--dark-90);
+            color: var(--white);
+            padding: var(--space-xs) var(--space-sm);
             border-radius: var(--radius-full);
             font-size: 0.75rem;
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1);
-            display: flex;
-            align-items: center;
-            gap: var(--space-xs);
-        }
-        
-        .video-label::before {
-            content: '';
-            width: 6px;
-            height: 6px;
-            background: var(--success);
-            border-radius: 50%;
-            animation: blink 2s ease-in-out infinite;
-        }
-        
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
         }
         
         /* Listening Indicator */
         .listening-indicator {
             position: absolute;
-            bottom: var(--space-3xl);
+            bottom: var(--space-2xl);
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(20px);
-            padding: var(--space-md) var(--space-2xl);
+            background: var(--white);
+            padding: var(--space-sm) var(--space-xl);
             border-radius: var(--radius-full);
             display: none;
             align-items: center;
-            gap: var(--space-md);
-            box-shadow: 
-                0 0 0 1px rgba(255,255,255,0.1),
-                0 10px 30px rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.1);
+            gap: var(--space-sm);
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--dark-10);
         }
         
         .listening-indicator.active {
@@ -322,7 +216,7 @@
         }
         
         .listening-text {
-            color: var(--white);
+            color: var(--dark);
             font-weight: 500;
             font-size: 0.875rem;
         }
@@ -336,10 +230,9 @@
         
         .listening-wave span {
             width: 3px;
-            background: linear-gradient(to top, var(--primary), var(--primary-light));
+            background: var(--success);
             border-radius: var(--radius-full);
-            animation: wave 1.2s ease-in-out infinite;
-            box-shadow: 0 0 10px rgba(210, 58, 47, 0.5);
+            animation: wave 1s ease-in-out infinite;
         }
         
         .listening-wave span:nth-child(1) { height: 12px; animation-delay: 0s; }
@@ -349,134 +242,77 @@
         .listening-wave span:nth-child(5) { height: 20px; animation-delay: 0.4s; }
         
         @keyframes wave {
-            0%, 100% { 
-                transform: scaleY(0.5);
-                opacity: 0.5;
-            }
-            50% { 
-                transform: scaleY(1);
-                opacity: 1;
-            }
+            0%, 100% { transform: scaleY(0.5); }
+            50% { transform: scaleY(1); }
         }
         
         /* Controls */
         .controls {
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(20px);
-            padding: var(--space-xl);
-            border-top: 1px solid rgba(255,255,255,0.1);
+            background: var(--white);
+            padding: var(--space-lg);
+            border-top: 1px solid var(--dark-05);
             display: flex;
             justify-content: center;
-            gap: var(--space-xl);
-            position: relative;
-        }
-        
-        .controls::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, 
-                transparent 10%, 
-                rgba(255,255,255,0.2) 50%, 
-                transparent 90%);
+            gap: var(--space-lg);
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
         }
         
         .control-btn {
-            width: 64px;
-            height: 64px;
+            width: 56px;
+            height: 56px;
             border-radius: var(--radius-full);
-            border: 1px solid rgba(255,255,255,0.2);
-            background: rgba(255, 255, 255, 0.05);
-            color: var(--white);
+            border: 2px solid var(--dark-10);
+            background: var(--white);
+            color: var(--dark);
             font-size: 1.5rem;
             cursor: pointer;
             transition: all var(--transition-base);
             display: flex;
             align-items: center;
             justify-content: center;
-            backdrop-filter: blur(10px);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .control-btn::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%);
-            transform: translate(-50%, -50%);
-            transition: all var(--transition-base);
+            box-shadow: var(--shadow-sm);
         }
         
         .control-btn:hover {
-            transform: translateY(-3px);
-            border-color: rgba(255,255,255,0.3);
-            background: rgba(255, 255, 255, 0.1);
-        }
-        
-        .control-btn:hover::before {
-            width: 100px;
-            height: 100px;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+            border-color: var(--primary);
         }
         
         .control-btn.active {
-            background: rgba(103, 137, 72, 0.3);
+            background: var(--success);
             border-color: var(--success);
-            color: var(--success);
-            box-shadow: 0 0 20px rgba(103, 137, 72, 0.4);
+            color: var(--white);
         }
         
         .control-btn.inactive {
-            background: rgba(206, 42, 43, 0.3);
+            background: var(--error);
             border-color: var(--error);
-            color: var(--error);
-            box-shadow: 0 0 20px rgba(206, 42, 43, 0.4);
+            color: var(--white);
         }
         
         /* Sidebar */
         .sidebar {
             width: 420px;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(20px);
-            border-left: 1px solid rgba(255,255,255,0.1);
+            background: var(--white);
+            border-left: 1px solid var(--dark-05);
             display: flex;
             flex-direction: column;
-            color: var(--white);
-            position: relative;
-        }
-        
-        .sidebar::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            left: 0;
-            width: 1px;
-            background: linear-gradient(to bottom, 
-                transparent, 
-                rgba(210, 58, 47, 0.3) 20%, 
-                rgba(159, 181, 149, 0.3) 50%,
-                rgba(210, 58, 47, 0.3) 80%,
-                transparent);
+            color: var(--dark);
+            box-shadow: -4px 0 20px rgba(0, 0, 0, 0.05);
         }
         
         .sidebar-header {
             padding: var(--space-xl);
-            background: rgba(255, 255, 255, 0.03);
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            background: var(--light);
+            border-bottom: 1px solid var(--dark-05);
         }
         
         .sidebar-title {
             font-family: var(--font-display);
             font-size: 1.5rem;
             margin-bottom: var(--space-md);
-            color: var(--white);
+            color: var(--dark);
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
@@ -999,6 +835,9 @@
         let currentAudio = null; // Track current playing audio
         let audioQueue = []; // Queue for audio playback
         let questionRequested = false; // Track if first question has been requested
+        let watchdogTimer = null; // Detect stuck interviews
+        let lastActivityTime = Date.now(); // Track last activity
+        let interviewActive = false; // Track if interview is active
         
         // Initialize the interview
         init();
@@ -1046,20 +885,66 @@
         }
         
         function connectToServer() {
-            socket = io();
+            socket = io({
+                reconnection: true,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                reconnectionAttempts: 10,
+                transports: ['websocket', 'polling']
+            });
+            
+            let reconnectAttempts = 0;
             
             socket.on('connect', () => {
                 console.log('Connected to server');
                 updateStatus('Connected');
+                reconnectAttempts = 0;
                 
                 // Join interview
                 socket.emit('join-interview', { interviewId });
+            });
+            
+            socket.on('disconnect', (reason) => {
+                console.log('Disconnected from server:', reason);
+                updateStatus('Connection lost. Reconnecting...');
+                
+                // Stop recognition while disconnected
+                if (isListening) {
+                    stopListening();
+                }
+            });
+            
+            socket.on('reconnect', (attemptNumber) => {
+                console.log('Reconnected after', attemptNumber, 'attempts');
+                updateStatus('Reconnected');
+                
+                // Rejoin the interview
+                socket.emit('join-interview', { interviewId });
+            });
+            
+            socket.on('reconnect_error', (error) => {
+                console.error('Reconnection error:', error);
+                reconnectAttempts++;
+                
+                if (reconnectAttempts >= 10) {
+                    updateStatus('Connection failed. Please refresh the page.');
+                }
+            });
+            
+            // Handle ping-pong keep-alive
+            socket.on('ping', () => {
+                socket.emit('pong');
             });
             
             socket.on('interview-started', (data) => {
                 console.log('Interview started:', data);
                 totalQuestions = data.totalQuestions;
                 updateProgress(0);
+                interviewActive = true;
+                updateActivity();
+                
+                // Start watchdog timer
+                startWatchdog();
                 
                 // Display greeting
                 displayAIMessage(data.greeting);
@@ -1116,13 +1001,18 @@
                     playAudio(data.audio);
                 }
                 
-                // Stop and save recording
+                // Stop and save recording before showing completion
                 stopRecording();
                 
-                // Show completion after audio
+                // Add handler for when recording is saved
+                socket.once('recording-saved', () => {
+                    console.log('Recording saved successfully on server');
+                });
+                
+                // Show completion after audio AND recording is saved
                 setTimeout(() => {
                     showCompletion(data.evaluation);
-                }, 8000);
+                }, 10000); // Give more time for recording to save
             });
             
             socket.on('error', (error) => {
@@ -1174,21 +1064,38 @@
                         });
                         finalTranscript = '';
                         stopListening();
+                        updateActivity();
                     }
                 }, 3000);
             };
             
             recognition.onerror = (event) => {
                 console.error('Recognition error:', event.error);
-                if (event.error === 'no-speech') {
-                    // Restart recognition
-                    setTimeout(() => startListening(), 1000);
+                
+                // Restart recognition for recoverable errors
+                if (event.error === 'no-speech' || event.error === 'network' || event.error === 'aborted') {
+                    setTimeout(() => {
+                        if (!currentAudio || currentAudio.paused) {
+                            startListening();
+                        }
+                    }, 1000);
                 }
             };
             
             recognition.onend = () => {
                 isListening = false;
                 document.getElementById('listeningIndicator').classList.remove('active');
+                
+                // Automatically restart listening if we're still in an active interview
+                // and no audio is playing
+                if (socket && socket.connected && (!currentAudio || currentAudio.paused)) {
+                    setTimeout(() => {
+                        if (!isListening && !currentAudio) {
+                            console.log('Restarting speech recognition after end event');
+                            startListening();
+                        }
+                    }, 500);
+                }
             };
         }
         
@@ -1416,48 +1323,79 @@
             console.log('stopRecording called, mediaRecorder state:', mediaRecorder?.state);
             
             if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                mediaRecorder.stop();
+                // Request final data before stopping
+                if (mediaRecorder.state === 'recording') {
+                    mediaRecorder.requestData();
+                }
                 
-                // Wait a bit to ensure all data is collected
-                setTimeout(() => {
+                // Set up the onstop handler before calling stop
+                mediaRecorder.onstop = () => {
+                    console.log('MediaRecorder stopped event fired');
                     console.log('Processing recording, chunks available:', recordedChunks.length);
                     
-                    if (recordedChunks.length > 0) {
-                        const blob = new Blob(recordedChunks, { type: 'video/webm' });
-                        console.log('Final recording blob created:');
-                        console.log('- Size:', blob.size, 'bytes (', (blob.size / 1024 / 1024).toFixed(2), 'MB)');
-                        console.log('- Type:', blob.type);
-                        console.log('- Chunks used:', recordedChunks.length);
-                        
-                        if (blob.size === 0) {
-                            console.error('Recording blob is empty!');
-                            return;
-                        }
-                        
-                        const reader = new FileReader();
-                        
-                        reader.onloadend = () => {
-                            console.log('Recording converted to base64, sending to server...');
-                            console.log('Base64 string length:', reader.result.length);
+                    // Give a small delay to ensure all chunks are processed
+                    setTimeout(() => {
+                        if (recordedChunks.length > 0) {
+                            const mimeType = mediaRecorder.mimeType || 'video/webm';
+                            const blob = new Blob(recordedChunks, { type: mimeType });
+                            console.log('Final recording blob created:');
+                            console.log('- Size:', blob.size, 'bytes (', (blob.size / 1024 / 1024).toFixed(2), 'MB)');
+                            console.log('- Type:', blob.type);
+                            console.log('- Chunks used:', recordedChunks.length);
+                            console.log('- Mime type:', mimeType);
                             
+                            if (blob.size === 0) {
+                                console.error('Recording blob is empty!');
+                                // Still emit to server to log the issue
+                                socket.emit('save-recording', {
+                                    recording: null,
+                                    error: 'Empty recording blob'
+                                });
+                                return;
+                            }
+                            
+                            const reader = new FileReader();
+                            
+                            reader.onloadend = () => {
+                                console.log('Recording converted to base64, sending to server...');
+                                console.log('Base64 string length:', reader.result.length);
+                                
+                                socket.emit('save-recording', {
+                                    recording: reader.result,
+                                    mimeType: mimeType,
+                                    chunks: recordedChunks.length,
+                                    size: blob.size
+                                });
+                                
+                                console.log('Recording sent to server');
+                            };
+                            
+                            reader.onerror = (error) => {
+                                console.error('Error reading recording:', error);
+                                socket.emit('save-recording', {
+                                    recording: null,
+                                    error: 'Failed to read recording: ' + error.message
+                                });
+                            };
+                            
+                            reader.readAsDataURL(blob);
+                        } else {
+                            console.warn('No recording chunks available');
                             socket.emit('save-recording', {
-                                recording: reader.result
+                                recording: null,
+                                error: 'No recording chunks available'
                             });
-                            
-                            console.log('Recording sent to server');
-                        };
-                        
-                        reader.onerror = (error) => {
-                            console.error('Error reading recording:', error);
-                        };
-                        
-                        reader.readAsDataURL(blob);
-                    } else {
-                        console.warn('No recording chunks available');
-                    }
-                }, 500); // Give more time for final chunks
+                        }
+                    }, 100);
+                };
+                
+                mediaRecorder.stop();
             } else {
                 console.warn('MediaRecorder not active or not initialized');
+                socket.emit('save-recording', {
+                    recording: null,
+                    error: 'MediaRecorder not active'
+                });
             }
         }
         
@@ -1533,6 +1471,73 @@
             
             document.body.innerHTML = completionHTML;
         }
+        
+        // Watchdog timer to detect stuck interviews
+        function startWatchdog() {
+            // Clear any existing watchdog
+            if (watchdogTimer) {
+                clearInterval(watchdogTimer);
+            }
+            
+            // Check every 30 seconds for activity
+            watchdogTimer = setInterval(() => {
+                const timeSinceLastActivity = Date.now() - lastActivityTime;
+                
+                // If no activity for 2 minutes, try to recover
+                if (timeSinceLastActivity > 120000 && interviewActive) {
+                    console.log('No activity detected for 2 minutes, attempting recovery...');
+                    
+                    // Check if audio is playing
+                    if (!currentAudio || currentAudio.paused) {
+                        // Check if we're listening
+                        if (!isListening) {
+                            console.log('Restarting speech recognition...');
+                            startListening();
+                        }
+                        
+                        // If we haven't requested the first question yet
+                        if (!questionRequested && audioQueue.length === 0) {
+                            console.log('Requesting first question...');
+                            questionRequested = true;
+                            socket.emit('ready-for-question');
+                        }
+                    }
+                }
+                
+                // If no activity for 5 minutes, show a warning
+                if (timeSinceLastActivity > 300000 && interviewActive) {
+                    updateStatus('Interview timeout - please refresh the page');
+                    interviewActive = false;
+                }
+            }, 30000);
+        }
+        
+        function updateActivity() {
+            lastActivityTime = Date.now();
+        }
+        
+        // Override existing functions to add activity tracking
+        const originalPlayAudio = playAudio;
+        playAudio = function(audioData) {
+            updateActivity();
+            return originalPlayAudio(audioData);
+        };
+        
+        const originalAddToTranscript = addToTranscript;
+        addToTranscript = function(speaker, text) {
+            updateActivity();
+            return originalAddToTranscript(speaker, text);
+        };
+        
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            if (watchdogTimer) {
+                clearInterval(watchdogTimer);
+            }
+            if (timeInterval) {
+                clearInterval(timeInterval);
+            }
+        });
     </script>
 </body>
 </html>

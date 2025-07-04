@@ -14,7 +14,15 @@ const OpenAI = require('openai');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+    pingTimeout: 60000, // 60 seconds
+    pingInterval: 25000, // 25 seconds
+    transports: ['websocket', 'polling'],
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
+});
 const PORT = process.env.PORT || 3000;
 
 // Middleware
@@ -234,7 +242,7 @@ class AIInterviewer {
                     }
                     
                     const response = await openai.chat.completions.create({
-                        model: 'gpt-4',
+                        model: 'gpt-4o', // Fast, multimodal model for real-time voice interactions
                         messages: [
                             {
                                 role: 'system',
@@ -308,7 +316,7 @@ class AIInterviewer {
             Keep the follow-up natural and conversational.`;
             
             const completion = await openai.chat.completions.create({
-                model: 'gpt-4',
+                model: 'gpt-4o', // Fast model for real-time follow-up questions
                 messages: [
                     {
                         role: 'system',
@@ -342,7 +350,7 @@ class AIInterviewer {
                 `\n\nJob Description:\n${jobDescription}\n` : '';
             
             const response = await openai.chat.completions.create({
-                model: 'gpt-4',
+                model: 'gpt-4-turbo', // Advanced model for complex evaluation and scoring
                 messages: [
                     {
                         role: 'system',
@@ -702,7 +710,7 @@ app.post('/api/test-connection', async (req, res) => {
             
             // Test with a simple completion
             const response = await openai.chat.completions.create({
-                model: 'gpt-4',
+                model: 'gpt-4o', // Using fast model for connection test
                 messages: [{ role: 'user', content: 'Say "connection successful" in 3 words.' }],
                 max_tokens: 10
             });
@@ -806,7 +814,7 @@ Include:
 Format it professionally and make it engaging to attract top talent.`;
 
         const response = await openai.chat.completions.create({
-            model: 'gpt-4',
+            model: 'gpt-4-turbo', // Advanced model for comprehensive job description generation
             messages: [
                 {
                     role: 'system',
@@ -827,7 +835,7 @@ Format it professionally and make it engaging to attract top talent.`;
         const questionsPrompt = `Based on this ${position} role${department ? ` in ${department}` : ''}${experienceLevel ? ` (${experienceLevel})` : ''}, suggest 6-8 excellent behavioral interview questions that will help assess the candidate's fit for the role. Focus on questions that reveal experience, problem-solving ability, and cultural fit.`;
         
         const questionsResponse = await openai.chat.completions.create({
-            model: 'gpt-4',
+            model: 'gpt-4-turbo', // Advanced model for thoughtful question generation
             messages: [
                 {
                     role: 'system',
@@ -995,6 +1003,33 @@ app.delete('/api/templates/:id', async (req, res) => {
 io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
     
+    // Set up keep-alive ping
+    const keepAliveInterval = setInterval(() => {
+        socket.emit('ping');
+    }, 20000); // Send ping every 20 seconds
+    
+    socket.on('pong', () => {
+        // Client is still alive
+    });
+    
+    socket.on('disconnect', (reason) => {
+        console.log('Client disconnected:', socket.id, 'Reason:', reason);
+        clearInterval(keepAliveInterval);
+        
+        // Clean up any interview data if needed
+        if (socket.interviewId) {
+            const interview = interviews.get(socket.interviewId);
+            if (interview && interview.status === 'active') {
+                interview.status = 'interrupted';
+                console.log('Interview interrupted for:', socket.interviewId);
+            }
+        }
+    });
+    
+    socket.on('error', (error) => {
+        console.error('Socket error:', socket.id, error);
+    });
+    
     socket.on('join-interview', async (data) => {
         const { interviewId } = data;
         const interview = interviews.get(interviewId);
@@ -1149,15 +1184,30 @@ io.on('connection', (socket) => {
     
     socket.on('save-recording', async (data) => {
         console.log('Received save-recording request for interview:', socket.interviewId);
+        console.log('Recording metadata:', {
+            hasRecording: !!data.recording,
+            error: data.error,
+            mimeType: data.mimeType,
+            chunks: data.chunks,
+            size: data.size
+        });
         
         if (!socket.interviewId) {
             console.error('No interview ID on socket');
+            socket.emit('recording-saved', { 
+                success: false, 
+                error: 'No interview ID' 
+            });
             return;
         }
         
         try {
             if (!data.recording) {
-                console.error('No recording data received');
+                console.error('No recording data received:', data.error || 'Unknown error');
+                socket.emit('recording-saved', { 
+                    success: false, 
+                    error: data.error || 'No recording data' 
+                });
                 return;
             }
             
@@ -1165,6 +1215,10 @@ io.on('connection', (socket) => {
             const base64Data = data.recording.split(',')[1];
             if (!base64Data) {
                 console.error('Invalid recording format - no base64 data found');
+                socket.emit('recording-saved', { 
+                    success: false, 
+                    error: 'Invalid recording format' 
+                });
                 return;
             }
             
@@ -1187,9 +1241,22 @@ io.on('connection', (socket) => {
             console.log('- File size:', stats.size, 'bytes');
             console.log('- File path:', recordingPath);
             console.log('- Interview ID:', socket.interviewId);
+            
+            // Notify client that recording was saved
+            socket.emit('recording-saved', { 
+                success: true, 
+                size: stats.size,
+                path: recordingPath 
+            });
         } catch (error) {
             console.error('Error saving recording:', error);
             console.error('Stack trace:', error.stack);
+            
+            // Notify client of error
+            socket.emit('recording-saved', { 
+                success: false, 
+                error: error.message 
+            });
         }
     });
     
