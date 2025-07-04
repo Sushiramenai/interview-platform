@@ -11,7 +11,7 @@ const path = require('path');
 const fs = require('fs').promises;
 const { v4: uuidv4 } = require('uuid');
 const OpenAI = require('openai');
-const AIInterviewOrchestrator = require('./server-new-ai');
+const ProfessionalInterviewOrchestrator = require('./interview-orchestrator-v2');
 
 const app = express();
 const server = http.createServer(app);
@@ -103,16 +103,16 @@ ensureDataDirectories();
 
 // ===== SIMPLIFIED SERVICES =====
 
-// Initialize AI Interview Orchestrator
+// Initialize Professional Interview Orchestrator
 let aiOrchestrator = null;
 
 function getAIOrchestrator() {
     if (!aiOrchestrator && appConfig.openai_api_key) {
         try {
             const openai = new OpenAI({ apiKey: appConfig.openai_api_key });
-            aiOrchestrator = new AIInterviewOrchestrator(openai);
+            aiOrchestrator = new ProfessionalInterviewOrchestrator(openai);
         } catch (error) {
-            console.error('Error initializing AI Orchestrator:', error);
+            console.error('Error initializing Interview Orchestrator:', error);
         }
     }
     return aiOrchestrator;
@@ -1250,171 +1250,97 @@ io.on('connection', (socket) => {
                 email: interview.candidateEmail
             },
             role: interview.role,
-            customQuestions: interview.customQuestions,
-            jobDescription: interview.jobDescription
-        });
-        
-        // Get greeting from orchestrator
-        const greetingResponse = await orchestrator.processInteraction(interviewId, null, 'greeting');
-        const greetingAudio = await voiceService.generateSpeech(greetingResponse.text);
-        
-        // Get total questions for UI
-        const interviewData = orchestrator.getInterview(interviewId);
-        const totalQuestions = interviewData.questions.length;
-        
-        socket.emit('interview-started', {
-            interview,
-            greeting: greetingResponse.text,
-            greetingAudio,
-            totalQuestions
+            customQuestions: interview.customQuestions
         });
         
         // Store session data
         socket.interviewId = interviewId;
-        socket.transcript = [{
-            speaker: 'AI',
-            text: greetingResponse.text,
-            timestamp: new Date().toISOString()
-        }];
+        socket.orchestrator = orchestrator;
+        socket.transcript = [];
+        
+        // Get greeting from orchestrator
+        try {
+            const response = await orchestrator.handleInteraction(interviewId);
+            const audio = await voiceService.generateSpeech(response.text);
+            
+            socket.emit('ai-speaks', {
+                text: response.text,
+                audio: audio,
+                type: response.type,
+                phase: response.phase,
+                questionIndex: response.questionIndex || 0,
+                expectingResponse: response.expectingResponse
+            });
+            
+            // Add to transcript
+            socket.transcript.push({
+                speaker: 'AI',
+                text: response.text,
+                timestamp: new Date().toISOString()
+            });
+            
+            // Update interview with questions count
+            const interviewData = orchestrator.interviews.get(interviewId);
+            socket.emit('interview-info', {
+                totalQuestions: interviewData.questions.length,
+                role: interview.role
+            });
+            
+        } catch (error) {
+            console.error('Error generating greeting:', error);
+            socket.emit('error', { message: 'Failed to start interview' });
+        }
     });
     
-    socket.on('ready-for-question', async () => {
-        if (!socket.interviewId) return;
-        
-        const orchestrator = getAIOrchestrator();
-        if (!orchestrator) {
-            socket.emit('error', { message: 'AI service not available' });
-            return;
-        }
-        
-        try {
-            // Process the "ready" signal - this moves from greeting to first question or between questions
-            const response = await orchestrator.processInteraction(socket.interviewId, 'ready', 'ready');
-            
-            if (response.action === 'end_interview') {
-                // Interview complete
-                await completeInterview(socket);
-            } else {
-                const audio = await voiceService.generateSpeech(response.text);
-                
-                socket.emit('ai-question', {
-                    questionIndex: response.questionIndex || 0,
-                    question: response.text,
-                    audio
-                });
-                
-                socket.transcript.push({
-                    speaker: 'AI',
-                    text: response.text,
-                    timestamp: new Date().toISOString()
-                });
-            }
-        } catch (error) {
-            console.error('Error getting next question:', error);
-            socket.emit('error', { message: 'Failed to get next question' });
-        }
-    });
+    // Simplified - no longer need ready-for-question event
+    // The orchestrator handles all flow internally
     
     socket.on('candidate-response', async (data) => {
         const { text } = data;
         
-        if (!socket.interviewId) return;
+        if (!socket.interviewId || !socket.orchestrator) return;
         
+        // Add to transcript
         socket.transcript.push({
             speaker: 'Candidate',
             text,
             timestamp: new Date().toISOString()
         });
         
-        const orchestrator = getAIOrchestrator();
-        if (!orchestrator) {
-            socket.emit('error', { message: 'AI service not available' });
-            return;
-        }
-        
         try {
-            // Process the candidate's response through the orchestrator
-            const response = await orchestrator.processInteraction(socket.interviewId, text, 'response');
-            console.log('AI Response:', {
+            // Process the response through the orchestrator
+            const response = await socket.orchestrator.handleInteraction(socket.interviewId, text);
+            
+            console.log(`[Interview ${socket.interviewId}] Response:`, {
                 type: response.type,
-                action: response.action,
-                text: response.text.substring(0, 50) + '...'
+                phase: response.phase,
+                expectingResponse: response.expectingResponse
             });
             
-            // Generate audio for the response
+            // Generate audio
             const audio = await voiceService.generateSpeech(response.text);
             
-            // Handle different response types
-            switch (response.type) {
-                case 'clarification':
-                case 'repeat':
-                    // AI is clarifying or repeating the question
-                    socket.emit('ai-followup', {
-                        text: response.text,
-                        audio: audio,
-                        isSpecialResponse: true,
-                        responseType: response.type
-                    });
-                    break;
-                    
-                case 'followup':
-                    // AI wants more information
-                    socket.emit('ai-followup', {
-                        text: response.text,
-                        audio: audio,
-                        isSpecialResponse: false
-                    });
-                    break;
-                    
-                case 'transition':
-                    // AI is acknowledging and moving to next question
-                    socket.emit('ai-acknowledgment', {
-                        text: response.text,
-                        audio: audio,
-                        moveToNext: true,
-                        waitTime: 3000  // Wait 3 seconds before next question
-                    });
-                    break;
-                    
-                case 'conclusion':
-                    // Interview is ending
-                    socket.emit('ai-acknowledgment', {
-                        text: response.text,
-                        audio: audio,
-                        moveToNext: false,
-                        waitTime: 1000
-                    });
-                    // Complete interview after conclusion
-                    setTimeout(() => completeInterview(socket), 3000);
-                    break;
-                    
-                case 'question':
-                    // This shouldn't happen in response to candidate-response
-                    console.warn('Unexpected question type in candidate-response handler');
-                    socket.emit('ai-question', {
-                        questionIndex: response.questionIndex || 0,
-                        question: response.text,
-                        audio
-                    });
-                    break;
-                    
-                default:
-                    // For any other response types
-                    const shouldMoveNext = response.action === 'move_to_next';
-                    socket.emit('ai-acknowledgment', {
-                        text: response.text,
-                        audio: audio,
-                        moveToNext: shouldMoveNext,
-                        waitTime: shouldMoveNext ? 3000 : 500
-                    });
-                    break;
-            }
+            // Send unified response to client
+            socket.emit('ai-speaks', {
+                text: response.text,
+                audio: audio,
+                type: response.type,
+                phase: response.phase,
+                questionIndex: response.questionIndex,
+                expectingResponse: response.expectingResponse
+            });
             
+            // Add AI response to transcript
             socket.transcript.push({
                 speaker: 'AI',
                 text: response.text,
                 timestamp: new Date().toISOString()
             });
+            
+            // Check if interview is completed
+            if (response.phase === 'completed') {
+                setTimeout(() => completeInterview(socket), 3000);
+            }
             
         } catch (error) {
             console.error('Error processing response:', error);
@@ -1539,10 +1465,41 @@ async function completeInterview(socket) {
     const orchestrator = getAIOrchestrator();
     if (orchestrator) {
         try {
-            const interviewData = orchestrator.getInterview(socket.interviewId);
-            if (interviewData) {
-                const evalResult = await orchestrator.evaluateInterview(interviewData);
-                evaluation = evalResult.evaluation;
+            const interviewSummary = orchestrator.getInterviewSummary(socket.interviewId);
+            if (interviewSummary) {
+                // Use GPT-4-turbo for evaluation
+                const openai = new OpenAI({ apiKey: appConfig.openai_api_key });
+                const evalPrompt = `Evaluate this ${interviewSummary.role} interview:
+
+Candidate: ${interviewSummary.candidate.name}
+Duration: ${interviewSummary.duration} minutes
+Questions Asked: ${interviewSummary.questionCount}
+
+Interview Responses:
+${interviewSummary.responses.map((r, i) => 
+    `Q${i+1}: ${r.question}\nA: ${r.answer}\n`
+).join('\n')}
+
+Provide a professional evaluation covering:
+1. Technical/role competency (based on answers)
+2. Communication skills
+3. Problem-solving approach
+4. Cultural fit indicators
+5. Overall recommendation
+
+Be specific and reference actual answers.`;
+
+                const completion = await openai.chat.completions.create({
+                    model: 'gpt-4-turbo-preview',
+                    messages: [
+                        { role: 'system', content: 'You are an experienced interviewer providing candidate evaluation.' },
+                        { role: 'user', content: evalPrompt }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 800
+                });
+                
+                evaluation = completion.choices[0].message.content;
             }
         } catch (error) {
             console.error('Error getting AI evaluation:', error);

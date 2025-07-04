@@ -828,13 +828,13 @@
         let recordedChunks = [];
         let recognition = null;
         let isListening = false;
-        let currentQuestionIndex = -1; // Start at -1, will increment when first question arrives
+        let currentQuestionIndex = 0; // Current question index
         let totalQuestions = 0;
         let startTime = Date.now();
         let timeInterval = null;
         let currentAudio = null; // Track current playing audio
         let audioQueue = []; // Queue for audio playback
-        let questionRequested = false; // Track if first question has been requested
+        let waitingForResponse = false; // Track if we're expecting a candidate response
         let watchdogTimer = null; // Detect stuck interviews
         let lastActivityTime = Date.now(); // Track last activity
         let interviewActive = false; // Track if interview is active
