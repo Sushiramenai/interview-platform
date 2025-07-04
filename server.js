@@ -95,7 +95,7 @@ class AIInterviewer {
         return customQuestions && customQuestions.length > 0 ? customQuestions : this.defaultQuestions;
     }
     
-    async getNextQuestion(index, questions, interviewId, previousResponse) {
+    async getNextQuestion(index, questions, interviewId, previousResponse, jobDescription = '') {
         const questionSet = questions || this.defaultQuestions;
         if (index < questionSet.length) {
             // Get conversation context
@@ -105,6 +105,9 @@ class AIInterviewer {
             const openai = this.getOpenAIClient();
             if (openai && previousResponse && index > 0) {
                 try {
+                    const jobContext = jobDescription ? 
+                        `\n\nJob Description Context:\n${jobDescription.substring(0, 500)}...` : '';
+                    
                     const response = await openai.chat.completions.create({
                         model: 'gpt-4',
                         messages: [
@@ -112,7 +115,7 @@ class AIInterviewer {
                                 role: 'system',
                                 content: `You are a warm, professional interviewer. The candidate just answered a question. 
                                 Acknowledge their response briefly and naturally transition to the next question. 
-                                Keep it conversational and empathetic. Maximum 2 sentences for the acknowledgment.`
+                                Keep it conversational and empathetic. Maximum 2 sentences for the acknowledgment.${jobContext}`
                             },
                             {
                                 role: 'user',
@@ -167,13 +170,16 @@ class AIInterviewer {
         }
     }
     
-    async evaluateCandidate(transcript, role) {
+    async evaluateCandidate(transcript, role, jobDescription = '') {
         const openai = this.getOpenAIClient();
         if (!openai) {
             return { score: 0, summary: "API key not configured" };
         }
         
         try {
+            const jobContext = jobDescription ? 
+                `\n\nJob Description:\n${jobDescription}\n` : '';
+            
             const response = await openai.chat.completions.create({
                 model: 'gpt-4',
                 messages: [
@@ -181,7 +187,7 @@ class AIInterviewer {
                         role: 'system',
                         content: `You are evaluating a candidate for a ${role} position. Provide a thorough, 
                         fair evaluation. Be constructive and professional. Score fairly - 7-8 is excellent, 
-                        9-10 is exceptional.`
+                        9-10 is exceptional.${jobContext}`
                     },
                     {
                         role: 'user',
@@ -197,6 +203,7 @@ Consider:
 - Problem-solving approach
 - Cultural fit indicators
 - Relevant experience
+${jobDescription ? '- Alignment with the specific requirements in the job description' : ''}
 
 Transcript:
 ${transcript}
@@ -327,7 +334,7 @@ app.get('/', (req, res) => {
 
 // Create new interview
 app.post('/api/interviews/create', async (req, res) => {
-    const { candidateName, candidateEmail, role, voiceId, customQuestions } = req.body;
+    const { candidateName, candidateEmail, role, voiceId, customQuestions, jobDescription, templateData } = req.body;
     const interviewId = uuidv4();
     
     const interview = {
@@ -337,6 +344,8 @@ app.post('/api/interviews/create', async (req, res) => {
         role,
         voiceId: voiceId || 'EXAVITQu4vr4xnSDxMaL',
         customQuestions: customQuestions || [],
+        jobDescription: jobDescription || '',
+        templateData: templateData || null,
         status: 'pending',
         createdAt: new Date().toISOString(),
         interviewUrl: `/interview/${interviewId}`
@@ -347,7 +356,8 @@ app.post('/api/interviews/create', async (req, res) => {
     console.log('Interview created:', {
         id: interviewId,
         voiceId: interview.voiceId,
-        hasQuestions: interview.customQuestions.length > 0
+        hasQuestions: interview.customQuestions.length > 0,
+        hasJobDescription: !!interview.jobDescription
     });
     
     res.json({
@@ -735,11 +745,13 @@ io.on('connection', (socket) => {
         const previousResponse = socket.questionIndex > 0 ? 
             socket.responses[socket.responses.length - 1]?.response : null;
         
+        const interview = interviews.get(socket.interviewId);
         const question = await aiInterviewer.getNextQuestion(
             socket.questionIndex, 
             socket.questions,
             socket.interviewId,
-            previousResponse
+            previousResponse,
+            interview ? interview.jobDescription : ''
         );
         
         if (question) {
@@ -863,7 +875,7 @@ async function completeInterview(socket) {
         .join('\n\n');
     
     // Get AI evaluation
-    const evaluation = await aiInterviewer.evaluateCandidate(transcriptText, interview.role);
+    const evaluation = await aiInterviewer.evaluateCandidate(transcriptText, interview.role, interview.jobDescription);
     
     // Calculate duration
     const duration = new Date(interview.completedAt) - new Date(interview.startedAt);
