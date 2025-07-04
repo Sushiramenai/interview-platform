@@ -5,6 +5,14 @@ class AIInterviewOrchestrator {
     constructor(openai) {
         this.openai = openai;
         this.interviews = new Map();
+        
+        // Optimal interview settings (not configurable)
+        this.settings = {
+            maxFollowUps: 2,
+            followUpProbability: 0.3,
+            transitionPauseMs: 3000,
+            minAnswerLengthForCompletion: 20 // words
+        };
     }
 
     // Initialize a new interview session
@@ -85,15 +93,28 @@ class AIInterviewOrchestrator {
                             timestamp: new Date().toISOString()
                         });
 
-                        // Move to next question or end
-                        if (interview.currentQuestionIndex < interview.questions.length - 1) {
-                            response = await this.moveToNextQuestion(interview);
+                        // Check if we should ask a follow-up
+                        const followUpCount = interview.followUpCounts?.[interview.currentQuestionIndex] || 0;
+                        const shouldFollowUp = this.shouldAskFollowUp(analysis, candidateText, followUpCount);
+                        
+                        if (shouldFollowUp) {
+                            // Track follow-up count
+                            if (!interview.followUpCounts) interview.followUpCounts = {};
+                            interview.followUpCounts[interview.currentQuestionIndex] = followUpCount + 1;
+                            
+                            response = await this.generateFollowUp(interview, analysis);
+                            // Stay in same state for follow-up
                         } else {
-                            response = await this.concludeInterview(interview);
-                            interview.state = 'completed';
+                            // Move to next question or end
+                            if (interview.currentQuestionIndex < interview.questions.length - 1) {
+                                response = await this.moveToNextQuestion(interview);
+                            } else {
+                                response = await this.concludeInterview(interview);
+                                interview.state = 'completed';
+                            }
                         }
                     } else {
-                        // Generate a follow-up to get more information
+                        // For incomplete answers, always follow up
                         response = await this.generateFollowUp(interview, analysis);
                         // Stay in same state
                     }
@@ -425,6 +446,28 @@ Generate a professional closing that:
         return recent.map(entry => 
             `${entry.role.toUpperCase()}: ${entry.content}`
         ).join('\n');
+    }
+    
+    // Determine if we should ask a follow-up question
+    shouldAskFollowUp(analysis, response, currentFollowUpCount) {
+        // Never exceed max follow-ups
+        if (currentFollowUpCount >= this.settings.maxFollowUps) {
+            return false;
+        }
+        
+        // Always follow up on vague or very short answers
+        const wordCount = response.trim().split(/\s+/).length;
+        if (wordCount < 10 || analysis.answerQuality === 'partial') {
+            return true;
+        }
+        
+        // For complete answers, use probability
+        if (analysis.answerQuality === 'complete' || analysis.answerQuality === 'comprehensive') {
+            return Math.random() < this.settings.followUpProbability;
+        }
+        
+        // Default: follow up if there are missing key points
+        return analysis.keyPointsMissing && analysis.keyPointsMissing.length > 0;
     }
 
     // Get default questions based on role

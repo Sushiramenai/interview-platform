@@ -51,60 +51,6 @@ let appConfig = {
     openai_api_key: process.env.OPENAI_API_KEY || '',
     elevenlabs_api_key: process.env.ELEVENLABS_API_KEY || '',
     elevenlabs_voice_id: process.env.ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL',
-    interview_guidelines: {
-        // Conversation Flow
-        pace: 'normal', // 'slow', 'normal', 'fast'
-        style: 'professional', // 'casual', 'professional', 'friendly', 'empathetic'
-        waitTime: 2000, // ms to wait between questions
-        
-        // Follow-up Behavior
-        followUpFrequency: 0.3, // 0-1 probability of follow-up questions
-        maxFollowUps: 2, // max follow-ups per question
-        followUpDepth: 'balanced', // 'surface', 'balanced', 'deep'
-        
-        // Natural Conversation Settings
-        useFillers: true, // Use "I see", "That's interesting", etc.
-        acknowledgements: true, // Acknowledge answers before moving on
-        personalizedResponses: true, // Reference previous answers
-        
-        // Interview Dynamics
-        warmupQuestions: 1, // Number of easy warmup questions
-        difficulty_progression: 'gradual', // 'flat', 'gradual', 'steep'
-        encouragement_level: 'moderate', // 'none', 'minimal', 'moderate', 'high'
-        
-        // Probing Techniques
-        clarificationStyle: 'gentle', // 'direct', 'gentle', 'persistent'
-        silenceHandling: 'patient', // 'immediate', 'patient', 'very_patient'
-        redirectTechnique: 'subtle', // 'direct', 'subtle', 'none'
-        
-        // Custom Instructions
-        customInstructions: '',
-        personality_traits: [] // e.g., ['warm', 'analytical', 'curious']
-    },
-    
-    // AI Behavior Templates
-    ai_templates: {
-        'technical_senior': {
-            name: 'Senior Technical Interview',
-            description: 'For experienced technical candidates',
-            settings: {
-                style: 'professional',
-                followUpDepth: 'deep',
-                difficulty_progression: 'steep',
-                clarificationStyle: 'persistent'
-            }
-        },
-        'entry_friendly': {
-            name: 'Entry Level Friendly',
-            description: 'Encouraging for junior candidates',
-            settings: {
-                style: 'friendly',
-                warmupQuestions: 2,
-                encouragement_level: 'high',
-                difficulty_progression: 'gradual'
-            }
-        }
-    },
     
     // Recording Settings
     recording_settings: {
@@ -291,48 +237,10 @@ class AIInterviewer {
                     const jobContext = jobDescription ? 
                         `\n\nJob Description Context:\n${jobDescription.substring(0, 500)}...` : '';
                     
-                    // Build system prompt based on guidelines
-                    const guidelines = appConfig.interview_guidelines;
-                    let systemPrompt = `You are a ${guidelines.style} interviewer conducting a real interview. `;
-                    
-                    // Style-specific instructions
-                    if (guidelines.style === 'professional') {
-                        systemPrompt += 'Maintain a formal yet approachable demeanor. ';
-                    } else if (guidelines.style === 'casual') {
-                        systemPrompt += 'Keep a relaxed, conversational tone like a friendly colleague. ';
-                    } else if (guidelines.style === 'friendly') {
-                        systemPrompt += 'Be warm, encouraging, and create a comfortable atmosphere. ';
-                    } else if (guidelines.style === 'empathetic') {
-                        systemPrompt += 'Show genuine interest and understanding in their experiences. ';
-                    }
-                    
-                    // Natural conversation elements
-                    if (guidelines.useFillers) {
-                        systemPrompt += 'Use natural fillers like "I see", "That\'s interesting", "Mm-hmm" occasionally. ';
-                    }
-                    
-                    if (guidelines.acknowledgements) {
-                        systemPrompt += 'Always acknowledge their answer before moving on. ';
-                    }
-                    
-                    if (guidelines.personalizedResponses && history.length > 0) {
-                        systemPrompt += 'Reference something they mentioned earlier when relevant. ';
-                    }
-                    
-                    // Encouragement settings
-                    if (guidelines.encouragement_level === 'high') {
-                        systemPrompt += 'Be very encouraging and positive about their responses. ';
-                    } else if (guidelines.encouragement_level === 'moderate') {
-                        systemPrompt += 'Offer moderate encouragement when appropriate. ';
-                    }
-                    
-                    // Personality traits
-                    if (guidelines.personality_traits && guidelines.personality_traits.length > 0) {
-                        systemPrompt += `Embody these traits: ${guidelines.personality_traits.join(', ')}. `;
-                    }
-                    
-                    // Simpler prompt to prevent instruction leakage
-                    systemPrompt = `You are conducting an interview. Be ${guidelines.style}.\n\nYour response should:
+                    // Optimal system prompt for professional, natural interviews
+                    const systemPrompt = `You are conducting a professional interview. Maintain a formal yet approachable demeanor.
+
+Your response should:
 1. Briefly acknowledge what the candidate just said (1 sentence)
 2. Then ask the next question
 
@@ -482,10 +390,12 @@ Just acknowledge and ask the single question.`;
         const openai = this.getOpenAIClient();
         if (!openai) return null;
         
-        const guidelines = appConfig.interview_guidelines;
+        // Optimal follow-up behavior: max 2 follow-ups per question
+        const maxFollowUps = 2;
+        const followUpFrequency = 0.3; // 30% chance
         
         // Check if we should ask a follow-up
-        if (followUpCount >= guidelines.maxFollowUps) {
+        if (followUpCount >= maxFollowUps) {
             return null;
         }
         
@@ -495,7 +405,7 @@ Just acknowledge and ask the single question.`;
         }
         
         // Adjust probability based on response completeness
-        let shouldFollowUp = Math.random() < guidelines.followUpFrequency;
+        let shouldFollowUp = Math.random() < followUpFrequency;
         
         // Check if the response seems incomplete or vague
         const vagueIndicators = [
@@ -510,7 +420,8 @@ Just acknowledge and ask the single question.`;
         // Check if response lacks specifics
         const hasSpecifics = /\\d+|%|\\$|specific|example|instance/i.test(response);
         
-        if (hasVagueLanguage && !hasSpecifics && guidelines.followUpDepth !== 'surface') {
+        // Always follow up on vague answers
+        if (hasVagueLanguage && !hasSpecifics) {
             shouldFollowUp = true;
         }
         
@@ -895,13 +806,12 @@ app.get('/results/:id', (req, res) => {
 
 // Save API keys and settings
 app.post('/api/settings/save', async (req, res) => {
-    const { openai_api_key, elevenlabs_api_key, elevenlabs_voice_id, interview_guidelines } = req.body;
+    const { openai_api_key, elevenlabs_api_key, elevenlabs_voice_id } = req.body;
     
     // Update config
     if (openai_api_key !== undefined) appConfig.openai_api_key = openai_api_key;
     if (elevenlabs_api_key !== undefined) appConfig.elevenlabs_api_key = elevenlabs_api_key;
     if (elevenlabs_voice_id !== undefined) appConfig.elevenlabs_voice_id = elevenlabs_voice_id;
-    if (interview_guidelines !== undefined) appConfig.interview_guidelines = { ...appConfig.interview_guidelines, ...interview_guidelines };
     
     // Save to file
     await saveConfig();
@@ -912,13 +822,7 @@ app.post('/api/settings/save', async (req, res) => {
     });
 });
 
-// Get interview guidelines
-app.get('/api/settings/guidelines', (req, res) => {
-    res.json({
-        success: true,
-        guidelines: appConfig.interview_guidelines
-    });
-});
+// Guidelines endpoint removed - using optimal defaults
 
 // Check if API keys are configured
 app.get('/api/settings/check', (req, res) => {

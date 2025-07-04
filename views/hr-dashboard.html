@@ -712,9 +712,6 @@
                 <button class="tab-button" onclick="switchTab('interviews')" data-tab="interviews" style="padding: var(--space-md) var(--space-xl); background: none; border: none; font-weight: 600; color: var(--dark-50); cursor: pointer;">
                     <i class="fas fa-user-tie"></i> Create Interview
                 </button>
-                <button class="tab-button" onclick="switchTab('guidelines')" data-tab="guidelines" style="padding: var(--space-md) var(--space-xl); background: none; border: none; font-weight: 600; color: var(--dark-50); cursor: pointer;">
-                    <i class="fas fa-robot"></i> AI Guidelines
-                </button>
                 <button class="tab-button" onclick="switchTab('history')" data-tab="history" style="padding: var(--space-md) var(--space-xl); background: none; border: none; font-weight: 600; color: var(--dark-50); cursor: pointer;">
                     <i class="fas fa-history"></i> Interview History
                 </button>
@@ -849,81 +846,6 @@
         </div>
     </section>
     
-    <!-- AI Guidelines Tab -->
-    <section class="container tab-content" id="guidelinesTab" style="display: none;">
-        <div class="create-section animate-slideUp">
-            <h2>AI Interview Guidelines</h2>
-            <p class="text-muted mb-4">Configure how the AI conducts interviews</p>
-            
-            <form id="guidelinesForm">
-                <div class="settings-section" style="margin-bottom: var(--space-xl);">
-                    <h4><i class="fas fa-tachometer-alt"></i> Interview Pace & Style</h4>
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label class="form-label">Interview Pace</label>
-                            <select class="form-control" id="interviewPace">
-                                <option value="slow">Slow - More time between questions</option>
-                                <option value="normal" selected>Normal - Standard pace</option>
-                                <option value="fast">Fast - Quick transitions</option>
-                            </select>
-                            <small class="text-muted">Controls how quickly the AI moves between questions</small>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="form-label">Interview Style</label>
-                            <select class="form-control" id="interviewStyle">
-                                <option value="casual">Casual - Relaxed and friendly</option>
-                                <option value="professional" selected>Professional - Formal and structured</option>
-                                <option value="friendly">Friendly - Warm and encouraging</option>
-                            </select>
-                            <small class="text-muted">Sets the tone of the AI interviewer</small>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="form-label">Wait Time Between Questions</label>
-                            <input type="number" class="form-control" id="waitTime" min="1000" max="10000" step="500" value="2000">
-                            <small class="text-muted">Milliseconds to wait after acknowledgment (1000 = 1 second)</small>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="form-label">Follow-up Question Frequency</label>
-                            <input type="range" class="form-control" id="followUpFrequency" min="0" max="100" value="30">
-                            <small class="text-muted">Probability of asking follow-up questions: <span id="followUpValue">30%</span></small>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="settings-section">
-                    <h4><i class="fas fa-brain"></i> AI Behavior Instructions</h4>
-                    <div class="form-group">
-                        <label class="form-label">Custom AI Instructions</label>
-                        <textarea class="form-control" id="customInstructions" rows="6" 
-                                  placeholder="Add any specific instructions for how the AI should conduct interviews...
-
-Example:
-- Focus on behavioral questions
-- Be encouraging and supportive
-- Ask for specific examples
-- Probe deeper on technical topics
-- Keep a conversational tone"></textarea>
-                        <small class="text-muted">These instructions will be added to the AI's system prompt</small>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Maximum Follow-ups Per Question</label>
-                        <input type="number" class="form-control" id="maxFollowUps" min="0" max="5" value="2">
-                        <small class="text-muted">Limits how many follow-up questions can be asked for each main question</small>
-                    </div>
-                </div>
-                
-                <div class="text-center">
-                    <button type="submit" class="btn btn-primary btn-lg">
-                        <i class="fas fa-save"></i> Save Guidelines
-                    </button>
-                </div>
-            </form>
-        </div>
-    </section>
     
     <!-- Interview History Tab -->
     <section class="container tab-content" id="historyTab" style="display: none;">
@@ -1192,8 +1114,8 @@ Requirements:
             document.getElementById('settingsForm').addEventListener('submit', saveSettings);
             document.getElementById('createTemplateForm').addEventListener('submit', saveTemplate);
             document.getElementById('role').addEventListener('change', loadTemplateQuestions);
-            document.getElementById('guidelinesForm')?.addEventListener('submit', saveGuidelines);
-            document.getElementById('followUpFrequency')?.addEventListener('input', updateFollowUpValue);
+            // Guidelines form removed - using optimal defaults
+            // Follow-up frequency removed - using optimal defaults
         }
         
         // Tab switching
@@ -1315,61 +1237,11 @@ Requirements:
         }
         
         // Load AI guidelines
-        async function loadGuidelines() {
-            try {
-                const response = await fetch('/api/settings/guidelines');
-                const data = await response.json();
-                
-                if (data.success && data.guidelines) {
-                    document.getElementById('interviewPace').value = data.guidelines.pace;
-                    document.getElementById('interviewStyle').value = data.guidelines.style;
-                    document.getElementById('waitTime').value = data.guidelines.waitTime;
-                    document.getElementById('followUpFrequency').value = data.guidelines.followUpFrequency * 100;
-                    document.getElementById('maxFollowUps').value = data.guidelines.maxFollowUps;
-                    document.getElementById('customInstructions').value = data.guidelines.customInstructions;
-                    updateFollowUpValue();
-                }
-            } catch (error) {
-                console.error('Error loading guidelines:', error);
-            }
-        }
+        // Guidelines removed - using optimal defaults
         
-        // Update follow-up frequency display
-        function updateFollowUpValue() {
-            const value = document.getElementById('followUpFrequency').value;
-            document.getElementById('followUpValue').textContent = value + '%';
-        }
+        // Guidelines removed - using optimal defaults
         
-        // Save AI guidelines
-        async function saveGuidelines(e) {
-            e.preventDefault();
-            
-            const guidelines = {
-                pace: document.getElementById('interviewPace').value,
-                style: document.getElementById('interviewStyle').value,
-                waitTime: parseInt(document.getElementById('waitTime').value),
-                followUpFrequency: parseInt(document.getElementById('followUpFrequency').value) / 100,
-                maxFollowUps: parseInt(document.getElementById('maxFollowUps').value),
-                customInstructions: document.getElementById('customInstructions').value
-            };
-            
-            try {
-                const response = await fetch('/api/settings/save', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ interview_guidelines: guidelines })
-                });
-                
-                if (response.ok) {
-                    showToast('AI Guidelines saved successfully!');
-                } else {
-                    throw new Error('Failed to save guidelines');
-                }
-            } catch (error) {
-                console.error('Error saving guidelines:', error);
-                alert('Failed to save guidelines. Please try again.');
-            }
-        }
+        // Guidelines removed - using optimal defaults
         
         // Load interviews
         async function loadInterviews() {
