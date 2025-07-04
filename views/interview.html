@@ -974,6 +974,23 @@
                 // Don't start listening here - let audio playback handle it
             });
             
+            socket.on('ai-followup', (data) => {
+                console.log('Follow-up received:', data);
+                displayAIMessage(data.text);
+                addToTranscript('AI Interviewer', data.text);
+                
+                if (data.audio) {
+                    playAudio(data.audio);
+                }
+                
+                // Don't automatically move to next question for special responses
+                if (data.isSpecialResponse && data.responseType !== 'skip') {
+                    // For repeat/clarify/unsure, wait for another response
+                    console.log('Special response type:', data.responseType);
+                    // Audio queue will handle starting to listen again
+                }
+            });
+            
             socket.on('ai-acknowledgment', (data) => {
                 displayAIMessage(data.text);
                 addToTranscript('AI Interviewer', data.text);

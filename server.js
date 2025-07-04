@@ -21,7 +21,8 @@ const io = new Server(server, {
     cors: {
         origin: "*",
         methods: ["GET", "POST"]
-    }
+    },
+    maxHttpBufferSize: 1e8 // 100 MB - allows for large recordings
 });
 const PORT = process.env.PORT || 3000;
 
@@ -102,6 +103,14 @@ let appConfig = {
                 difficulty_progression: 'gradual'
             }
         }
+    },
+    
+    // Recording Settings
+    recording_settings: {
+        maxFileSizeMB: 600, // Max 600 MB per recording (enough for 30 min)
+        maxStorageGB: 20, // Total storage limit
+        autoCleanupDays: 30, // Auto-delete after 30 days
+        compressionEnabled: false // Can enable if needed
     }
 };
 
@@ -268,6 +277,100 @@ class AIInterviewer {
         return null;
     }
     
+    async analyzeResponse(question, response) {
+        const openai = this.getOpenAIClient();
+        if (!openai) return { type: 'normal', needsAction: false };
+        
+        try {
+            const systemPrompt = `You are analyzing a candidate's response during an interview to understand their intent and needs.
+            
+            Analyze the response and determine:
+            1. Is the candidate asking to repeat the question?
+            2. Is the candidate asking for clarification?
+            3. Is the candidate saying they don't understand?
+            4. Is the candidate asking to skip or move on?
+            5. Is this a normal answer to the question?
+            
+            Common patterns to look for:
+            - "Can you repeat that?" / "What was the question?" / "Sorry, I didn't catch that"
+            - "Can you clarify?" / "What do you mean by..." / "I'm not sure I understand"
+            - "I don't know" / "I'm not familiar with..." / "I haven't experienced that"
+            - "Can we skip this?" / "Next question" / "Pass"
+            
+            Respond with JSON: { "type": "repeat|clarify|unsure|skip|normal", "confidence": 0.0-1.0 }`;
+            
+            const completion = await openai.chat.completions.create({
+                model: 'gpt-4o',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: `Question: ${question}\n\nCandidate's response: ${response}` }
+                ],
+                response_format: { type: "json_object" },
+                max_tokens: 50,
+                temperature: 0.3
+            });
+            
+            return JSON.parse(completion.choices[0].message.content);
+        } catch (error) {
+            console.error('Error analyzing response:', error);
+            return { type: 'normal', confidence: 0.5 };
+        }
+    }
+    
+    async generateContextualResponse(type, question, response, interviewId) {
+        const openai = this.getOpenAIClient();
+        if (!openai) return null;
+        
+        try {
+            let systemPrompt = '';
+            let userPrompt = '';
+            
+            switch (type) {
+                case 'repeat':
+                    systemPrompt = `You are a friendly interviewer. The candidate has asked you to repeat the question. 
+                    Acknowledge their request politely and repeat the question clearly. Keep it natural and conversational.`;
+                    userPrompt = `Original question: ${question}\n\nRepeat this question in a natural, clear way with a brief acknowledgment.`;
+                    break;
+                    
+                case 'clarify':
+                    systemPrompt = `You are a helpful interviewer. The candidate needs clarification on the question. 
+                    Acknowledge their request and rephrase the question more clearly, perhaps with an example.`;
+                    userPrompt = `Original question: ${question}\n\nCandidate asked: ${response}\n\nProvide a clearer version of the question.`;
+                    break;
+                    
+                case 'unsure':
+                    systemPrompt = `You are an encouraging interviewer. The candidate seems unsure or unfamiliar with the topic. 
+                    Be supportive and either rephrase the question in simpler terms or offer to move to the next question.`;
+                    userPrompt = `Question: ${question}\n\nCandidate said: ${response}\n\nRespond supportively and offer alternatives.`;
+                    break;
+                    
+                case 'skip':
+                    systemPrompt = `You are an understanding interviewer. The candidate wants to skip this question. 
+                    Acknowledge this politely and indicate you'll move to the next question.`;
+                    userPrompt = `The candidate wants to skip the current question. Respond professionally and indicate moving forward.`;
+                    break;
+                    
+                default:
+                    return null;
+            }
+            
+            const completion = await openai.chat.completions.create({
+                model: 'gpt-4o',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userPrompt }
+                ],
+                max_tokens: 150,
+                temperature: 0.7
+            });
+            
+            return completion.choices[0].message.content;
+        } catch (error) {
+            console.error('Error generating contextual response:', error);
+            return null;
+        }
+    }
+    
     async generateFollowUp(interviewId, question, response, followUpCount = 0) {
         const openai = this.getOpenAIClient();
         if (!openai) return null;
@@ -332,7 +435,7 @@ class AIInterviewer {
             });
             
             const followUp = completion.choices[0].message.content;
-            return followUp.toLowerCase().includes('null') ? null : followUp;
+            return followUp.toLowerCase().includes('no_followup') ? null : followUp;
         } catch (error) {
             console.error('Error generating follow-up:', error);
             return null;
@@ -691,6 +794,48 @@ app.get('/api/settings/check', (req, res) => {
         elevenlabs: !!appConfig.elevenlabs_api_key,
         voice_id: appConfig.elevenlabs_voice_id
     });
+});
+
+// Get storage statistics
+app.get('/api/storage/stats', async (req, res) => {
+    try {
+        const recordingsDir = path.join(__dirname, 'data/recordings');
+        let totalSize = 0;
+        let fileCount = 0;
+        
+        try {
+            const files = await fs.readdir(recordingsDir);
+            
+            for (const file of files) {
+                if (file.endsWith('.webm')) {
+                    const filePath = path.join(recordingsDir, file);
+                    const stats = await fs.stat(filePath);
+                    totalSize += stats.size;
+                    fileCount++;
+                }
+            }
+        } catch (error) {
+            // Directory doesn't exist yet
+        }
+        
+        const totalSizeMB = totalSize / 1024 / 1024;
+        const totalSizeGB = totalSizeMB / 1024;
+        const maxStorageGB = appConfig.recording_settings.maxStorageGB;
+        const usagePercent = (totalSizeGB / maxStorageGB) * 100;
+        
+        res.json({
+            totalFiles: fileCount,
+            totalSizeMB: totalSizeMB.toFixed(2),
+            totalSizeGB: totalSizeGB.toFixed(2),
+            maxStorageGB: maxStorageGB,
+            usagePercent: usagePercent.toFixed(1),
+            maxFileSizeMB: appConfig.recording_settings.maxFileSizeMB,
+            autoCleanupDays: appConfig.recording_settings.autoCleanupDays
+        });
+    } catch (error) {
+        console.error('Error getting storage stats:', error);
+        res.status(500).json({ error: 'Failed to get storage statistics' });
+    }
 });
 
 // Test API connections
@@ -1141,10 +1286,55 @@ io.on('connection', (socket) => {
         
         aiInterviewer.updateConversationHistory(socket.interviewId, 'Candidate', text);
         
-        // Check if we should ask a follow-up question
+        // First, analyze what type of response this is
+        const currentQuestion = socket.questions[socket.questionIndex];
+        const analysis = await aiInterviewer.analyzeResponse(currentQuestion, text);
+        console.log('Response analysis:', analysis);
+        
+        // Handle special cases first
+        if (analysis.type !== 'normal' && analysis.confidence > 0.6) {
+            const contextualResponse = await aiInterviewer.generateContextualResponse(
+                analysis.type,
+                currentQuestion,
+                text,
+                socket.interviewId
+            );
+            
+            if (contextualResponse) {
+                const audio = await voiceService.generateSpeech(contextualResponse);
+                
+                if (analysis.type === 'skip') {
+                    // Move to next question if skipping
+                    socket.emit('ai-acknowledgment', {
+                        text: contextualResponse,
+                        audio: audio,
+                        waitTime: 1000
+                    });
+                } else {
+                    // For repeat/clarify/unsure, stay on same question
+                    socket.emit('ai-followup', {
+                        text: contextualResponse,
+                        audio: audio,
+                        isSpecialResponse: true,
+                        responseType: analysis.type
+                    });
+                }
+                
+                socket.transcript.push({
+                    speaker: 'AI',
+                    text: contextualResponse,
+                    timestamp: new Date().toISOString()
+                });
+                
+                aiInterviewer.updateConversationHistory(socket.interviewId, 'AI', contextualResponse);
+                return;
+            }
+        }
+        
+        // Normal response flow - check for follow-up questions
         const followUp = await aiInterviewer.generateFollowUp(
             socket.interviewId,
-            socket.questions[socket.questionIndex],
+            currentQuestion,
             text
         );
         
@@ -1152,7 +1342,8 @@ io.on('connection', (socket) => {
             const followUpAudio = await voiceService.generateSpeech(followUp);
             socket.emit('ai-followup', {
                 text: followUp,
-                audio: followUpAudio
+                audio: followUpAudio,
+                isSpecialResponse: false
             });
             
             socket.transcript.push({
@@ -1164,21 +1355,51 @@ io.on('connection', (socket) => {
             aiInterviewer.updateConversationHistory(socket.interviewId, 'AI', followUp);
             socket.expectingFollowUp = true;
         } else {
-            // Simple acknowledgment for smooth transitions
-            const acks = [
-                "Thank you for sharing that.",
-                "I appreciate your response.",
-                "That's interesting, thank you.",
-                "Thank you, that's helpful to know."
-            ];
-            const ack = acks[Math.floor(Math.random() * acks.length)];
+            // Generate contextual acknowledgment instead of random one
+            const acknowledgmentPrompt = `The candidate just answered: "${text}". 
+            Generate a brief, natural acknowledgment that shows you heard them. 
+            Reference something specific from their answer if possible. 
+            Keep it under 15 words.`;
+            
+            let ack = "Thank you for sharing that."; // Default fallback
+            
+            try {
+                const openai = aiInterviewer.getOpenAIClient();
+                if (openai) {
+                    const response = await openai.chat.completions.create({
+                        model: 'gpt-4o',
+                        messages: [
+                            { 
+                                role: 'system', 
+                                content: 'You are a professional interviewer. Generate brief, contextual acknowledgments.' 
+                            },
+                            { role: 'user', content: acknowledgmentPrompt }
+                        ],
+                        max_tokens: 30,
+                        temperature: 0.7
+                    });
+                    
+                    ack = response.choices[0].message.content;
+                }
+            } catch (error) {
+                console.error('Error generating acknowledgment:', error);
+            }
+            
             const ackAudio = await voiceService.generateSpeech(ack);
             
             socket.emit('ai-acknowledgment', {
                 text: ack,
                 audio: ackAudio,
-                waitTime: appConfig.interview_guidelines.waitTime // Add wait time before next question
+                waitTime: appConfig.interview_guidelines.waitTime
             });
+            
+            socket.transcript.push({
+                speaker: 'AI',
+                text: ack,
+                timestamp: new Date().toISOString()
+            });
+            
+            aiInterviewer.updateConversationHistory(socket.interviewId, 'AI', ack);
         }
     });
     
@@ -1224,14 +1445,26 @@ io.on('connection', (socket) => {
             
             console.log('Base64 data length:', base64Data.length);
             
+            // Convert base64 to buffer
+            const buffer = Buffer.from(base64Data, 'base64');
+            const fileSizeMB = buffer.length / 1024 / 1024;
+            console.log('Buffer size:', buffer.length, 'bytes (', fileSizeMB.toFixed(2), 'MB)');
+            
+            // Check file size limit
+            if (fileSizeMB > appConfig.recording_settings.maxFileSizeMB) {
+                console.error('Recording too large:', fileSizeMB.toFixed(2), 'MB > ', appConfig.recording_settings.maxFileSizeMB, 'MB');
+                socket.emit('recording-saved', { 
+                    success: false, 
+                    error: `Recording too large: ${fileSizeMB.toFixed(2)}MB exceeds ${appConfig.recording_settings.maxFileSizeMB}MB limit` 
+                });
+                return;
+            }
+            
             // Save recording blob
             const recordingPath = path.join(__dirname, 'data/recordings', `${socket.interviewId}.webm`);
             console.log('Saving recording to:', recordingPath);
             
             await fs.mkdir(path.dirname(recordingPath), { recursive: true });
-            
-            const buffer = Buffer.from(base64Data, 'base64');
-            console.log('Buffer size:', buffer.length, 'bytes (', (buffer.length / 1024 / 1024).toFixed(2), 'MB)');
             
             await fs.writeFile(recordingPath, buffer);
             
