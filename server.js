@@ -21,6 +21,7 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use('/css', express.static(path.join(__dirname, 'public/css')));
 app.use('/images', express.static(path.join(__dirname, 'public/images')));
+app.use('/data/recordings', express.static(path.join(__dirname, 'data/recordings')));
 app.use(express.static('public'));
 
 // In-memory storage (could be replaced with database)
@@ -343,17 +344,27 @@ app.get('/api/results/:id', (req, res) => {
 
 // Test voice endpoint
 app.post('/api/test-voice', async (req, res) => {
-    const { voiceId, text } = req.body;
+    const { voiceId, text = "Hello! This is a test of the voice synthesis system." } = req.body;
     
     try {
+        // Make sure we have API key
+        if (!appConfig.elevenlabs_api_key) {
+            return res.status(400).json({ error: 'ElevenLabs API key not configured' });
+        }
+        
+        // Create temporary voice service with the test voice ID
         const tempVoiceService = new VoiceService();
         tempVoiceService.voiceId = voiceId;
         const audio = await tempVoiceService.generateSpeech(text);
         
+        if (!audio) {
+            throw new Error('Voice generation returned no audio');
+        }
+        
         res.json({ audio });
     } catch (error) {
         console.error('Error testing voice:', error);
-        res.status(500).json({ error: 'Failed to generate voice' });
+        res.status(500).json({ error: 'Failed to generate voice: ' + error.message });
     }
 });
 

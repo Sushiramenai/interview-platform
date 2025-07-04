@@ -810,7 +810,12 @@
                 <!-- Video Section -->
                 ${data.recordingUrl ? `
                 <div class="video-section">
-                    <h2 class="card-title">Interview Recording</h2>
+                    <div class="card-header">
+                        <h2 class="card-title">Interview Recording</h2>
+                        <a href="${data.recordingUrl}" download="interview-${data.interview.candidateName}-${data.interview.id}.webm" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-download"></i> Download Video
+                        </a>
+                    </div>
                     <div class="video-container">
                         <video controls>
                             <source src="${data.recordingUrl}" type="video/webm">
