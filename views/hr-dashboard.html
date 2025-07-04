@@ -97,7 +97,7 @@
             left: 0;
             width: 100%;
             height: 4px;
-            background: linear-gradient(90deg, var(--primary) 0%, var(--warm-brown) 100%);
+            background: linear-gradient(90deg, var(--primary) 0%, var(--accent-forest) 50%, var(--warm-brown) 100%);
         }
         
         .stat-card:hover {
@@ -122,8 +122,8 @@
         }
         
         .stat-icon.success {
-            background: rgba(103, 137, 72, 0.1);
-            color: var(--success);
+            background: rgba(159, 181, 149, 0.15);
+            color: var(--accent-forest);
         }
         
         .stat-icon.warning {
@@ -374,8 +374,8 @@
             left: -100px;
             width: 200px;
             height: 200px;
-            background: radial-gradient(circle, var(--sage) 0%, transparent 70%);
-            opacity: 0.1;
+            background: radial-gradient(circle, var(--accent-sage) 0%, transparent 70%);
+            opacity: 0.15;
             animation: float 15s ease-in-out infinite;
         }
         
@@ -535,7 +535,7 @@
         .template-card:hover {
             border-color: var(--primary);
             transform: translateY(-2px);
-            box-shadow: var(--shadow-lg);
+            box-shadow: 0 8px 24px rgba(210, 58, 47, 0.1), 0 4px 12px rgba(107, 142, 90, 0.15);
         }
         
         .template-card-header {
@@ -622,8 +622,41 @@
         }
         
         .badge-secondary {
-            background: var(--dark-10);
-            color: var(--dark-70);
+            background: linear-gradient(135deg, var(--accent-sage), var(--accent-forest));
+            color: var(--white);
+            font-weight: 600;
+            box-shadow: 0 2px 4px rgba(107, 142, 90, 0.2);
+        }
+        
+        /* Premium Green Accents */
+        .btn-primary:hover {
+            box-shadow: 0 4px 12px rgba(210, 58, 47, 0.3), 0 2px 6px rgba(107, 142, 90, 0.2);
+        }
+        
+        .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(210, 58, 47, 0.1), 0 0 0 6px rgba(159, 181, 149, 0.1);
+        }
+        
+        .interview-item:hover {
+            background: linear-gradient(to right, var(--light), rgba(159, 181, 149, 0.05));
+            border-color: var(--primary);
+            box-shadow: inset 3px 0 0 var(--accent-forest);
+        }
+        
+        .tab-button.active {
+            position: relative;
+        }
+        
+        .tab-button.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 20%;
+            right: 20%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--accent-forest), transparent);
+            opacity: 0.5;
         }
     </style>
 </head>
@@ -785,7 +818,7 @@
                                     <option value="ThT5KcBeYPX3keUQqHPh">Dorothy - British Female</option>
                                     <option value="IKne3meq5aSn9XLyUdCD">Charlie - Australian Male</option>
                                 </select>
-                                <button type="button" class="btn btn-sm btn-secondary mt-2" onclick="testVoice()">
+                                <button type="button" class="btn btn-sm btn-accent mt-2" onclick="testVoice()">
                                     <i class="fas fa-play"></i> Test Voice
                                 </button>
                             </div>
@@ -802,7 +835,7 @@
                                               placeholder="Tell me about yourself and your professional background."></textarea>
                                 </div>
                             </div>
-                            <button type="button" class="btn btn-sm btn-secondary" onclick="addQuestion()">
+                            <button type="button" class="btn btn-sm btn-accent" onclick="addQuestion()">
                                 <i class="fas fa-plus"></i> Add Question
                             </button>
                         </div>
@@ -1108,16 +1141,16 @@ Requirements:
                                     <label class="form-label mb-0">Interview Questions</label>
                                     <small class="text-muted d-block">Add specific questions you want the AI to ask</small>
                                 </div>
-                                <button type="button" class="btn btn-secondary btn-sm" onclick="generateSuggestedQuestions()">
+                                <button type="button" class="btn btn-accent btn-sm" onclick="generateSuggestedQuestions()">
                                     <i class="fas fa-magic"></i> Generate Suggestions
                                 </button>
                             </div>
                             
-                            <div style="background: var(--light); padding: 20px; border-radius: var(--radius-md); max-height: 400px; overflow-y: auto;">
+                            <div style="background: linear-gradient(135deg, var(--light), rgba(159, 181, 149, 0.05)); border: 1px solid rgba(159, 181, 149, 0.2); padding: 20px; border-radius: var(--radius-md); max-height: 400px; overflow-y: auto;">
                                 <div id="templateQuestionsContainer">
                                     <div class="question-item mb-3">
                                         <div class="d-flex align-items-start gap-2">
-                                            <span class="question-number" style="background: var(--primary); color: white; padding: 4px 10px; border-radius: var(--radius-full); font-size: 0.875rem; margin-top: 8px;">1</span>
+                                            <span class="question-number" style="background: linear-gradient(135deg, var(--primary), var(--accent-forest)); color: white; padding: 4px 10px; border-radius: var(--radius-full); font-size: 0.875rem; margin-top: 8px;">1</span>
                                             <textarea class="form-control template-question-input flex-1" rows="2" required
                                                       placeholder="e.g., Tell me about your experience with [relevant technology/skill]"></textarea>
                                             <button type="button" class="btn btn-sm btn-light" onclick="removeTemplateQuestion(this)" style="margin-top: 8px;">
@@ -1126,7 +1159,7 @@ Requirements:
                                         </div>
                                     </div>
                                 </div>
-                                <button type="button" class="btn btn-secondary mt-3" onclick="addTemplateQuestion()">
+                                <button type="button" class="btn btn-accent mt-3" onclick="addTemplateQuestion()">
                                     <i class="fas fa-plus"></i> Add Another Question
                                 </button>
                             </div>
@@ -1780,7 +1813,7 @@ Requirements:
             document.getElementById('templateQuestionsContainer').innerHTML = `
                 <div class="question-item mb-3">
                     <div class="d-flex align-items-start gap-2">
-                        <span class="question-number" style="background: var(--primary); color: white; padding: 4px 10px; border-radius: var(--radius-full); font-size: 0.875rem; margin-top: 8px;">1</span>
+                        <span class="question-number" style="background: linear-gradient(135deg, var(--primary), var(--accent-forest)); color: white; padding: 4px 10px; border-radius: var(--radius-full); font-size: 0.875rem; margin-top: 8px;">1</span>
                         <textarea class="form-control template-question-input flex-1" rows="2" required
                               placeholder="Enter interview question..."></textarea>
                 </div>
@@ -1796,7 +1829,7 @@ Requirements:
             questionDiv.className = 'question-item mb-3';
             questionDiv.innerHTML = `
                 <div class="d-flex align-items-start gap-2">
-                    <span class="question-number" style="background: var(--primary); color: white; padding: 4px 10px; border-radius: var(--radius-full); font-size: 0.875rem; margin-top: 8px;">${templateQuestionCount}</span>
+                    <span class="question-number" style="background: linear-gradient(135deg, var(--primary), var(--accent-forest)); color: white; padding: 4px 10px; border-radius: var(--radius-full); font-size: 0.875rem; margin-top: 8px;">${templateQuestionCount}</span>
                     <textarea class="form-control template-question-input flex-1" rows="2" required
                               placeholder="e.g., Tell me about your experience with [relevant technology/skill]"></textarea>
                     <button type="button" class="btn btn-sm btn-light" onclick="removeTemplateQuestion(this)" style="margin-top: 8px;">
@@ -1859,7 +1892,7 @@ Requirements:
                         questionDiv.className = 'question-item mb-3';
                         questionDiv.innerHTML = `
                             <div class="d-flex align-items-start gap-2">
-                                <span class="question-number" style="background: var(--primary); color: white; padding: 4px 10px; border-radius: var(--radius-full); font-size: 0.875rem; margin-top: 8px;">${index + 1}</span>
+                                <span class="question-number" style="background: linear-gradient(135deg, var(--primary), var(--accent-forest)); color: white; padding: 4px 10px; border-radius: var(--radius-full); font-size: 0.875rem; margin-top: 8px;">${index + 1}</span>
                                 <textarea class="form-control template-question-input flex-1" rows="2" required>${question}</textarea>
                                 <button type="button" class="btn btn-sm btn-light" onclick="removeTemplateQuestion(this)" style="margin-top: 8px;">
                                     <i class="fas fa-trash"></i>
