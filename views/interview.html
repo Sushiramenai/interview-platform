@@ -999,11 +999,17 @@
                     playAudio(data.audio);
                 }
                 
-                // Get next question after wait time
-                const waitTime = data.waitTime || 3000;
-                setTimeout(() => {
-                    socket.emit('ready-for-question');
-                }, waitTime);
+                // Only move to next question if explicitly told to
+                if (data.moveToNext) {
+                    console.log('Moving to next question after acknowledgment');
+                    const waitTime = data.waitTime || 1500;
+                    setTimeout(() => {
+                        socket.emit('ready-for-question');
+                    }, waitTime);
+                } else {
+                    // Just wait for candidate to continue
+                    console.log('Acknowledgment received, waiting for candidate to continue');
+                }
             });
             
             socket.on('interview-completed', async (data) => {

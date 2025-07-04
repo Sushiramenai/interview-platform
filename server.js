@@ -289,15 +289,18 @@ class AIInterviewer {
             2. Is the candidate asking for clarification?
             3. Is the candidate saying they don't understand?
             4. Is the candidate asking to skip or move on?
-            5. Is this a normal answer to the question?
+            5. Is the candidate finished with their answer and ready for next question?
+            6. Is this a normal answer that might continue?
             
             Common patterns to look for:
-            - "Can you repeat that?" / "What was the question?" / "Sorry, I didn't catch that"
-            - "Can you clarify?" / "What do you mean by..." / "I'm not sure I understand"
-            - "I don't know" / "I'm not familiar with..." / "I haven't experienced that"
-            - "Can we skip this?" / "Next question" / "Pass"
+            - "Can you repeat that?" / "What was the question?" / "Sorry, I didn't catch that" → repeat
+            - "Can you clarify?" / "What do you mean by..." / "I'm not sure I understand" → clarify
+            - "I don't know" / "I'm not familiar with..." / "I haven't experienced that" → unsure
+            - "Can we skip this?" / "Next question" / "Pass" → skip
+            - "That's all" / "I'm done" / "That's my answer" / "Next" → finished
+            - Normal substantive answer → normal
             
-            Respond with JSON: { "type": "repeat|clarify|unsure|skip|normal", "confidence": 0.0-1.0 }`;
+            Respond with JSON: { "type": "repeat|clarify|unsure|skip|finished|normal", "confidence": 0.0-1.0 }`;
             
             const completion = await openai.chat.completions.create({
                 model: 'gpt-4o',
@@ -1293,6 +1296,28 @@ io.on('connection', (socket) => {
         
         // Handle special cases first
         if (analysis.type !== 'normal' && analysis.confidence > 0.6) {
+            // For 'finished' type, proceed to next question
+            if (analysis.type === 'finished') {
+                const finishAck = "Great, let's move on to the next question.";
+                const audio = await voiceService.generateSpeech(finishAck);
+                
+                socket.emit('ai-acknowledgment', {
+                    text: finishAck,
+                    audio: audio,
+                    moveToNext: true,
+                    waitTime: 1500
+                });
+                
+                socket.transcript.push({
+                    speaker: 'AI',
+                    text: finishAck,
+                    timestamp: new Date().toISOString()
+                });
+                
+                aiInterviewer.updateConversationHistory(socket.interviewId, 'AI', finishAck);
+                return;
+            }
+            
             const contextualResponse = await aiInterviewer.generateContextualResponse(
                 analysis.type,
                 currentQuestion,
@@ -1308,6 +1333,7 @@ io.on('connection', (socket) => {
                     socket.emit('ai-acknowledgment', {
                         text: contextualResponse,
                         audio: audio,
+                        moveToNext: true,
                         waitTime: 1000
                     });
                 } else {
@@ -1355,51 +1381,62 @@ io.on('connection', (socket) => {
             aiInterviewer.updateConversationHistory(socket.interviewId, 'AI', followUp);
             socket.expectingFollowUp = true;
         } else {
-            // Generate contextual acknowledgment instead of random one
-            const acknowledgmentPrompt = `The candidate just answered: "${text}". 
-            Generate a brief, natural acknowledgment that shows you heard them. 
-            Reference something specific from their answer if possible. 
-            Keep it under 15 words.`;
+            // For normal responses, check if the answer seems complete
+            const isSubstantialAnswer = text.length > 100 || text.includes('.') || 
+                                        text.split(' ').length > 15;
             
-            let ack = "Thank you for sharing that."; // Default fallback
-            
-            try {
-                const openai = aiInterviewer.getOpenAIClient();
-                if (openai) {
-                    const response = await openai.chat.completions.create({
-                        model: 'gpt-4o',
-                        messages: [
-                            { 
-                                role: 'system', 
-                                content: 'You are a professional interviewer. Generate brief, contextual acknowledgments.' 
-                            },
-                            { role: 'user', content: acknowledgmentPrompt }
-                        ],
-                        max_tokens: 30,
-                        temperature: 0.7
-                    });
-                    
-                    ack = response.choices[0].message.content;
+            if (isSubstantialAnswer) {
+                // Generate a thoughtful acknowledgment and wait for them to continue
+                const acknowledgmentPrompt = `The candidate just gave this answer: "${text}". 
+                Generate a very brief acknowledgment (under 10 words) that shows active listening.
+                Don't ask a question. Just acknowledge what they said.`;
+                
+                let ack = "I see."; // Default fallback
+                
+                try {
+                    const openai = aiInterviewer.getOpenAIClient();
+                    if (openai) {
+                        const response = await openai.chat.completions.create({
+                            model: 'gpt-4o',
+                            messages: [
+                                { 
+                                    role: 'system', 
+                                    content: 'You are an active listener. Generate very brief acknowledgments without questions.' 
+                                },
+                                { role: 'user', content: acknowledgmentPrompt }
+                            ],
+                            max_tokens: 20,
+                            temperature: 0.7
+                        });
+                        
+                        ack = response.choices[0].message.content;
+                    }
+                } catch (error) {
+                    console.error('Error generating acknowledgment:', error);
                 }
-            } catch (error) {
-                console.error('Error generating acknowledgment:', error);
+                
+                const ackAudio = await voiceService.generateSpeech(ack);
+                
+                // Send acknowledgment but DON'T move to next question
+                socket.emit('ai-acknowledgment', {
+                    text: ack,
+                    audio: ackAudio,
+                    moveToNext: false,  // Don't move to next question
+                    waitTime: 0  // No automatic progression
+                });
+                
+                socket.transcript.push({
+                    speaker: 'AI',
+                    text: ack,
+                    timestamp: new Date().toISOString()
+                });
+                
+                aiInterviewer.updateConversationHistory(socket.interviewId, 'AI', ack);
+            } else {
+                // For very short responses, just wait for more without acknowledging
+                console.log('Short response received, waiting for candidate to continue...');
+                // Don't send any response - let them continue talking
             }
-            
-            const ackAudio = await voiceService.generateSpeech(ack);
-            
-            socket.emit('ai-acknowledgment', {
-                text: ack,
-                audio: ackAudio,
-                waitTime: appConfig.interview_guidelines.waitTime
-            });
-            
-            socket.transcript.push({
-                speaker: 'AI',
-                text: ack,
-                timestamp: new Date().toISOString()
-            });
-            
-            aiInterviewer.updateConversationHistory(socket.interviewId, 'AI', ack);
         }
     });
     
