@@ -730,7 +730,7 @@
                     <h2>Position Templates</h2>
                     <p class="text-muted">Create and manage interview templates for different positions</p>
                 </div>
-                <button class="btn btn-primary" onclick="showTemplateModal()">
+                <button class="btn btn-primary" onclick="showCreateTemplateForm()">
                     <i class="fas fa-plus"></i> Create New Template
                 </button>
             </div>
@@ -768,9 +768,8 @@
                 <div class="stat-label">Pending</div>
             </div>
         </div>
-    </section>
-    
-        <div class="create-section animate-slideUp" style="margin-top: var(--space-2xl);">
+        
+        <div class="create-section animate-slideUp">
             <h2>Create New Interview</h2>
             <p class="text-muted mb-4">Schedule an AI-powered interview in seconds</p>
             
@@ -928,9 +927,6 @@ Example:
     
     <!-- Interview History Tab -->
     <section class="container tab-content" id="historyTab" style="display: none;">
-    
-    <!-- Interview List -->
-    <section class="container mb-5">
         <div class="interview-list animate-slideUp">
             <div class="card-header">
                 <h3>Recent Interviews</h3>
@@ -1227,6 +1223,8 @@ Requirements:
             // Load data for specific tabs
             if (tabName === 'positions') {
                 renderTemplateCards();
+            } else if (tabName === 'history') {
+                loadInterviews();
             }
         }
         
@@ -1788,6 +1786,12 @@ Requirements:
         function showTemplateModal() {
             document.getElementById('templateModal').classList.add('active');
             document.body.classList.add('modal-open');
+        }
+        
+        // Show create template form directly
+        function showCreateTemplateForm() {
+            showTemplateModal();
+            showCreateTemplate();
         }
         
         // Close template modal
