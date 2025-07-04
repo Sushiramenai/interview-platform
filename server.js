@@ -78,9 +78,15 @@ class AIInterviewer {
     
     getOpenAIClient() {
         if (!appConfig.openai_api_key) {
+            console.warn('OpenAI API key not configured');
             return null;
         }
-        return new OpenAI({ apiKey: appConfig.openai_api_key });
+        try {
+            return new OpenAI({ apiKey: appConfig.openai_api_key });
+        } catch (error) {
+            console.error('Error initializing OpenAI client:', error);
+            return null;
+        }
     }
     
     getQuestionsForRole(role, customQuestions) {
