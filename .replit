@@ -1,6 +1,6 @@
-run = "node auto-start.js"
+run = "npm start"
 language = "nodejs"
-entrypoint = "auto-start.js"
+entrypoint = "server.js"
 
 [packager]
 language = "nodejs"
