@@ -221,7 +221,7 @@ io.on('connection', (socket) => {
         interview.startedAt = new Date().toISOString();
         
         // Start interview with greeting
-        const greeting = `Hello ${interview.candidateName}! I'm your AI interviewer today. 
+        const greeting = `Hello ${interview.candidateName}! I'm your interviewer from Senbird today. 
         I'll be asking you some questions about your background and experience for the ${interview.role} position. 
         Please speak clearly and take your time with each answer. Let's begin!`;
         
@@ -364,7 +364,7 @@ async function completeInterview(socket) {
     
     // Notify client
     const closing = `Thank you so much for your time today, ${interview.candidateName}. 
-    We've completed all the questions. Your responses have been recorded and will be reviewed by our team. 
+    We've completed all the questions. Your responses have been recorded and will be reviewed by the Senbird team. 
     We'll be in touch soon with next steps. Have a great day!`;
     
     const closingAudio = await voiceService.generateSpeech(closing);
@@ -381,10 +381,10 @@ server.listen(PORT, '0.0.0.0', () => {
     // Show appropriate URL based on environment
     const isReplit = process.env.REPL_SLUG && process.env.REPL_OWNER;
     if (isReplit) {
-        console.log(`\n🚀 AI Interview Platform is running!`);
+        console.log(`\n🚀 Senbird Interview System is running!`);
         console.log(`\n🔗 Your app URL: https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`);
     } else {
-        console.log(`\n🚀 AI Interview Platform running on http://localhost:${PORT}`);
+        console.log(`\n🚀 Senbird Interview System running on http://localhost:${PORT}`);
     }
     console.log('\n📋 Required API Keys:');
     console.log(`   Claude API: ${process.env.CLAUDE_API_KEY ? '✅ Configured' : '❌ Missing'}`);

@@ -102,12 +102,8 @@
   color: var(--dark);
 }
 
-.logo-text span:first-child {
+.logo-text {
   color: var(--dark);
-}
-
-.logo-text span:last-child {
-  color: var(--tea-green);
 }
 
 /* Global Reset & Base Styles */

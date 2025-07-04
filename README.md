@@ -1,6 +1,6 @@
-# AI Interview Platform - Simple & Powerful
+# Senbird Interview System - Simple & Powerful
 
-A streamlined AI-powered interview platform that conducts professional job interviews using Claude AI and ElevenLabs voice synthesis. No external meeting platforms needed - everything runs in your browser\!
+A streamlined AI-powered interview system by Senbird that conducts professional job interviews using Claude AI and ElevenLabs voice synthesis. No external meeting platforms needed - everything runs in your browser!
 
 ## 🚀 Quick Start on Replit
 

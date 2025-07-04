@@ -1,7 +1,7 @@
 {
-  "name": "ai-interview-platform-simple",
+  "name": "senbird-interview-system",
   "version": "2.0.0",
-  "description": "Simple AI-powered interview platform with built-in video",
+  "description": "Senbird Interview System - AI-powered interview platform with built-in video",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

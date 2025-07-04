@@ -6,7 +6,7 @@ const { spawn } = require('child_process');
 
 // Auto-start script that handles everything
 async function autoStart() {
-    console.log('🚀 AI Interview Platform - Auto Setup\n');
+    console.log('🚀 Senbird Interview System - Auto Setup\n');
     
     // Check if we're on Replit
     const isReplit = process.env.REPL_SLUG && process.env.REPL_OWNER;
@@ -106,7 +106,7 @@ async function autoStart() {
     }
     
     // Start the server
-    console.log('🚀 Starting AI Interview Platform...\n');
+    console.log('🚀 Starting Senbird Interview System...\n');
     
     // Use spawn to run server.js
     const server = spawn('node', ['server.js'], {

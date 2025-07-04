@@ -1,6 +1,6 @@
-# AI Interview Platform - Auto Setup for Replit
+# Senbird Interview System - Auto Setup for Replit
 
-A streamlined AI-powered interview platform that works immediately on Replit with zero configuration!
+A streamlined AI-powered interview system by Senbird that works immediately on Replit with zero configuration!
 
 ## 🚀 Instant Setup on Replit
 
@@ -27,7 +27,7 @@ That's it! The platform will automatically:
 
 Once running, you'll see:
 ```
-🚀 AI Interview Platform is running!
+🚀 Senbird Interview System is running!
 
 🔗 Your app URL: https://your-repl-name.your-username.repl.co
 ```
@@ -91,6 +91,6 @@ Check the Webview panel or console for your URL
 
 ## 🚀 That's It!
 
-Your AI Interview Platform is ready to use. No configuration files, no manual setup, just add API keys and click Run!
+Your Senbird Interview System is ready to use. No configuration files, no manual setup, just add API keys and click Run!
 
 Perfect for HR teams who want powerful AI interviews without any technical complexity.
