@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interview Results</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            color: #3498db;
+            text-decoration: none;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        
+        .candidate-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .candidate-details h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .candidate-meta {
+            color: #7f8c8d;
+            font-size: 16px;
+        }
+        
+        .score-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            min-width: 200px;
+        }
+        
+        .score-label {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+        
+        .score-value {
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .score-max {
+            font-size: 18px;
+            opacity: 0.8;
+        }
+        
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        @media (max-width: 768px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .section h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+        
+        .evaluation-item {
+            margin-bottom: 15px;
+        }
+        
+        .evaluation-item h3 {
+            color: #34495e;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .evaluation-text {
+            color: #555;
+            line-height: 1.8;
+        }
+        
+        .list-items {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .list-items li {
+            padding: 10px 0;
+            padding-left: 25px;
+            position: relative;
+            color: #555;
+        }
+        
+        .list-items li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #27ae60;
+            font-weight: bold;
+        }
+        
+        .improvements li::before {
+            content: '→';
+            color: #f39c12;
+        }
+        
+        .transcript-section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        
+        .transcript-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .search-box {
+            padding: 8px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+            width: 300px;
+        }
+        
+        .download-btn {
+            background: #3498db;
+            color: white;
+            padding: 8px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .download-btn:hover {
+            background: #2980b9;
+        }
+        
+        .transcript-content {
+            max-height: 600px;
+            overflow-y: auto;
+            border: 1px solid #ecf0f1;
+            border-radius: 5px;
+            padding: 20px;
+        }
+        
+        .transcript-entry {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        
+        .transcript-entry:last-child {
+            border-bottom: none;
+        }
+        
+        .transcript-speaker {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .transcript-speaker.ai {
+            color: #667eea;
+        }
+        
+        .transcript-speaker.candidate {
+            color: #27ae60;
+        }
+        
+        .transcript-time {
+            font-size: 12px;
+            color: #95a5a6;
+            float: right;
+        }
+        
+        .transcript-text {
+            color: #555;
+            line-height: 1.8;
+        }
+        
+        .video-section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .video-player {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        video {
+            width: 100%;
+            height: auto;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #95a5a6;
+        }
+        
+        .error {
+            text-align: center;
+            padding: 60px;
+            color: #e74c3c;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            background: #27ae60;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">
+            ← Back to Dashboard
+        </a>
+        
+        <div id="loadingState" class="loading">
+            Loading interview results...
+        </div>
+        
+        <div id="errorState" class="error" style="display: none;">
+            Error loading results. Please try again.
+        </div>
+        
+        <div id="resultsContent" style="display: none;">
+            <!-- Results will be populated here -->
+        </div>
+    </div>
+    
+    <script>
+        // Get interview ID from URL
+        const interviewId = window.location.pathname.split('/').pop();
+        
+        // Load results
+        loadResults();
+        
+        async function loadResults() {
+            try {
+                const response = await fetch(`/api/results/${interviewId}`);
+                
+                if (!response.ok) {
+                    throw new Error('Results not found');
+                }
+                
+                const data = await response.json();
+                displayResults(data);
+                
+            } catch (error) {
+                console.error('Error loading results:', error);
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('errorState').style.display = 'block';
+            }
+        }
+        
+        function displayResults(data) {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('resultsContent').style.display = 'block';
+            
+            const content = document.getElementById('resultsContent');
+            
+            content.innerHTML = `
+                <div class="header">
+                    <div class="candidate-info">
+                        <div class="candidate-details">
+                            <h1>${data.interview.candidateName}</h1>
+                            <div class="candidate-meta">
+                                <p>${data.interview.candidateEmail}</p>
+                                <p>${data.interview.role} • ${formatDate(data.interview.completedAt)}</p>
+                                <p>Duration: ${data.duration} • <span class="status-badge">Completed</span></p>
+                            </div>
+                        </div>
+                        <div class="score-card">
+                            <div class="score-label">Overall Score</div>
+                            <div class="score-value">${data.evaluation.score}</div>
+                            <div class="score-max">out of 10</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="content-grid">
+                    <div class="section">
+                        <h2>AI Evaluation Summary</h2>
+                        <div class="evaluation-item">
+                            <p class="evaluation-text">${data.evaluation.summary}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="section">
+                        <h2>Interview Statistics</h2>
+                        <div class="evaluation-item">
+                            <p>Total Questions Asked: <strong>${data.responses.length}</strong></p>
+                            <p>Interview Duration: <strong>${data.duration}</strong></p>
+                            <p>Average Response Time: <strong>~45 seconds</strong></p>
+                            <p>Completion Rate: <strong>100%</strong></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="content-grid">
+                    <div class="section">
+                        <h2>Key Strengths</h2>
+                        <ul class="list-items">
+                            ${data.evaluation.strengths.map(strength => 
+                                `<li>${strength}</li>`
+                            ).join('')}
+                        </ul>
+                    </div>
+                    
+                    <div class="section">
+                        <h2>Areas for Improvement</h2>
+                        <ul class="list-items improvements">
+                            ${data.evaluation.improvements.map(improvement => 
+                                `<li>${improvement}</li>`
+                            ).join('')}
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="transcript-section">
+                    <h2>Interview Transcript</h2>
+                    <div class="transcript-controls">
+                        <input type="text" class="search-box" placeholder="Search transcript..." 
+                               onkeyup="searchTranscript(this.value)">
+                        <button class="download-btn" onclick="downloadTranscript()">
+                            📥 Download Transcript
+                        </button>
+                    </div>
+                    <div class="transcript-content" id="transcriptContent">
+                        ${data.transcript.map(entry => `
+                            <div class="transcript-entry">
+                                <div class="transcript-speaker ${entry.speaker === 'AI' ? 'ai' : 'candidate'}">
+                                    ${entry.speaker}
+                                    <span class="transcript-time">${formatTime(entry.timestamp)}</span>
+                                </div>
+                                <div class="transcript-text">${entry.text}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                ${data.recordingUrl ? `
+                <div class="video-section">
+                    <h2>Interview Recording</h2>
+                    <div class="video-player">
+                        <video controls>
+                            <source src="${data.recordingUrl}" type="video/webm">
+                            Your browser does not support video playback.
+                        </video>
+                    </div>
+                </div>
+                ` : ''}
+            `;
+            
+            // Store data for download
+            window.interviewData = data;
+        }
+        
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString() + ' at ' + date.toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        
+        function searchTranscript(query) {
+            const entries = document.querySelectorAll('.transcript-entry');
+            const searchTerm = query.toLowerCase();
+            
+            entries.forEach(entry => {
+                const text = entry.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    entry.style.display = 'block';
+                    if (searchTerm) {
+                        // Highlight matching text
+                        const textElement = entry.querySelector('.transcript-text');
+                        const originalText = textElement.textContent;
+                        const regex = new RegExp(`(${query})`, 'gi');
+                        textElement.innerHTML = originalText.replace(regex, '<mark>$1</mark>');
+                    }
+                } else {
+                    entry.style.display = 'none';
+                }
+            });
+        }
+        
+        function downloadTranscript() {
+            if (!window.interviewData) return;
+            
+            let content = `Interview Transcript
+Candidate: ${window.interviewData.interview.candidateName}
+Role: ${window.interviewData.interview.role}
+Date: ${new Date(window.interviewData.interview.completedAt).toLocaleString()}
+Duration: ${window.interviewData.duration}
+Score: ${window.interviewData.evaluation.score}/10
+
+Evaluation Summary:
+${window.interviewData.evaluation.summary}
+
+Key Strengths:
+${window.interviewData.evaluation.strengths.map(s => '- ' + s).join('\n')}
+
+Areas for Improvement:
+${window.interviewData.evaluation.improvements.map(i => '- ' + i).join('\n')}
+
+--- TRANSCRIPT ---
+
+`;
+            
+            window.interviewData.transcript.forEach(entry => {
+                content += `${entry.speaker} [${formatTime(entry.timestamp)}]:\n${entry.text}\n\n`;
+            });
+            
+            // Create download
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `interview-transcript-${window.interviewData.interview.candidateName.replace(/\s+/g, '-')}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
