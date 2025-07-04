@@ -11,6 +11,7 @@ const path = require('path');
 const fs = require('fs').promises;
 const { v4: uuidv4 } = require('uuid');
 const OpenAI = require('openai');
+const AIInterviewOrchestrator = require('./server-new-ai');
 
 const app = express();
 const server = http.createServer(app);
@@ -156,7 +157,22 @@ ensureDataDirectories();
 
 // ===== SIMPLIFIED SERVICES =====
 
-// AI Interviewer Service
+// Initialize AI Interview Orchestrator
+let aiOrchestrator = null;
+
+function getAIOrchestrator() {
+    if (!aiOrchestrator && appConfig.openai_api_key) {
+        try {
+            const openai = new OpenAI({ apiKey: appConfig.openai_api_key });
+            aiOrchestrator = new AIInterviewOrchestrator(openai);
+        } catch (error) {
+            console.error('Error initializing AI Orchestrator:', error);
+        }
+    }
+    return aiOrchestrator;
+}
+
+// Legacy AI Interviewer Service (kept for compatibility)
 class AIInterviewer {
     constructor() {
         this.conversationHistory = new Map();
@@ -1316,78 +1332,89 @@ io.on('connection', (socket) => {
             hasElevenLabsKey: !!appConfig.elevenlabs_api_key
         });
         
-        // Get questions for this interview (cleaned to ensure single questions)
-        const questions = aiInterviewer.getQuestionsForRole(
-            interview.role, 
-            interview.customQuestions
-        );
+        // Initialize AI Orchestrator for this interview
+        const orchestrator = getAIOrchestrator();
+        if (!orchestrator) {
+            socket.emit('error', { message: 'AI service not configured' });
+            return;
+        }
         
-        // Start interview with greeting
-        const greeting = `Hello ${interview.candidateName}. I'm your interviewer from Senbird today. 
-        I'll be asking you some questions about your background and experience for the ${interview.role} position. 
-        Please speak clearly and take your time with each answer.`;
+        // Initialize interview in orchestrator
+        orchestrator.initializeInterview(interviewId, {
+            candidate: {
+                name: interview.candidateName,
+                email: interview.candidateEmail
+            },
+            role: interview.role,
+            customQuestions: interview.customQuestions,
+            jobDescription: interview.jobDescription
+        });
         
-        const greetingAudio = await voiceService.generateSpeech(greeting);
+        // Get greeting from orchestrator
+        const greetingResponse = await orchestrator.processInteraction(interviewId, null, 'greeting');
+        const greetingAudio = await voiceService.generateSpeech(greetingResponse.text);
+        
+        // Get total questions for UI
+        const interviewData = orchestrator.getInterview(interviewId);
+        const totalQuestions = interviewData.questions.length;
         
         socket.emit('interview-started', {
             interview,
-            greeting,
+            greeting: greetingResponse.text,
             greetingAudio,
-            totalQuestions: questions.length
+            totalQuestions
         });
         
         // Store session data
         socket.interviewId = interviewId;
-        socket.questions = questions;
-        socket.questionIndex = -1;
         socket.transcript = [{
             speaker: 'AI',
-            text: greeting,
+            text: greetingResponse.text,
             timestamp: new Date().toISOString()
         }];
-        socket.responses = [];
     });
     
     socket.on('ready-for-question', async () => {
         if (!socket.interviewId) return;
         
-        socket.questionIndex++;
-        const previousResponse = socket.questionIndex > 0 ? 
-            socket.responses[socket.responses.length - 1]?.response : null;
+        const orchestrator = getAIOrchestrator();
+        if (!orchestrator) {
+            socket.emit('error', { message: 'AI service not available' });
+            return;
+        }
         
-        const interview = interviews.get(socket.interviewId);
-        const question = await aiInterviewer.getNextQuestion(
-            socket.questionIndex, 
-            socket.questions,
-            socket.interviewId,
-            previousResponse,
-            interview ? interview.jobDescription : ''
-        );
-        
-        if (question) {
-            const audio = await voiceService.generateSpeech(question);
+        try {
+            // Process the "ready" signal - this moves from greeting to first question or between questions
+            const response = await orchestrator.processInteraction(socket.interviewId, 'ready', 'ready');
             
-            socket.emit('ai-question', {
-                questionIndex: socket.questionIndex,
-                question,
-                audio
-            });
-            
-            socket.transcript.push({
-                speaker: 'AI',
-                text: question,
-                timestamp: new Date().toISOString()
-            });
-            
-            aiInterviewer.updateConversationHistory(socket.interviewId, 'AI', question);
-        } else {
-            // Interview complete
-            await completeInterview(socket);
+            if (response.action === 'end_interview') {
+                // Interview complete
+                await completeInterview(socket);
+            } else {
+                const audio = await voiceService.generateSpeech(response.text);
+                
+                socket.emit('ai-question', {
+                    questionIndex: response.questionIndex || 0,
+                    question: response.text,
+                    audio
+                });
+                
+                socket.transcript.push({
+                    speaker: 'AI',
+                    text: response.text,
+                    timestamp: new Date().toISOString()
+                });
+            }
+        } catch (error) {
+            console.error('Error getting next question:', error);
+            socket.emit('error', { message: 'Failed to get next question' });
         }
     });
     
     socket.on('candidate-response', async (data) => {
         const { text } = data;
+        
+        if (!socket.interviewId) return;
         
         socket.transcript.push({
             speaker: 'Candidate',
@@ -1395,192 +1422,83 @@ io.on('connection', (socket) => {
             timestamp: new Date().toISOString()
         });
         
-        // Handle greeting response (before first question)
-        if (socket.questionIndex === -1) {
-            console.log('Candidate responded to greeting:', text);
-            
-            // Simple acknowledgment and move to first question
-            const response = "Great! Let's begin with the first question.";
-            const audio = await voiceService.generateSpeech(response);
-            
-            socket.emit('ai-acknowledgment', {
-                text: response,
-                audio: audio,
-                moveToNext: true,
-                waitTime: 1500
-            });
-            
-            socket.transcript.push({
-                speaker: 'AI',
-                text: response,
-                timestamp: new Date().toISOString()
-            });
-            
-            aiInterviewer.updateConversationHistory(socket.interviewId, 'AI', response);
+        const orchestrator = getAIOrchestrator();
+        if (!orchestrator) {
+            socket.emit('error', { message: 'AI service not available' });
             return;
         }
         
-        socket.responses.push({
-            questionIndex: socket.questionIndex,
-            question: socket.questions[socket.questionIndex],
-            response: text,
-            timestamp: new Date().toISOString()
-        });
-        
-        aiInterviewer.updateConversationHistory(socket.interviewId, 'Candidate', text);
-        
-        // Analyze what type of response this is
-        const currentQuestion = socket.questions[socket.questionIndex];
-        const analysis = await aiInterviewer.analyzeResponse(currentQuestion, text);
-        console.log('Response analysis:', analysis);
-        
-        // Handle special cases first
-        if (analysis.type !== 'normal' && analysis.confidence > 0.6) {
-            // For 'finished' type, proceed to next question
-            if (analysis.type === 'finished') {
-                const finishAck = "Great, let's move on to the next question.";
-                const audio = await voiceService.generateSpeech(finishAck);
-                
-                socket.emit('ai-acknowledgment', {
-                    text: finishAck,
-                    audio: audio,
-                    moveToNext: true,
-                    waitTime: 1500
-                });
-                
-                socket.transcript.push({
-                    speaker: 'AI',
-                    text: finishAck,
-                    timestamp: new Date().toISOString()
-                });
-                
-                aiInterviewer.updateConversationHistory(socket.interviewId, 'AI', finishAck);
-                return;
-            }
+        try {
+            // Process the candidate's response through the orchestrator
+            const response = await orchestrator.processInteraction(socket.interviewId, text, 'response');
+            console.log('AI Response:', response);
             
-            const contextualResponse = await aiInterviewer.generateContextualResponse(
-                analysis.type,
-                currentQuestion,
-                text,
-                socket.interviewId
-            );
+            // Generate audio for the response
+            const audio = await voiceService.generateSpeech(response.text);
             
-            if (contextualResponse) {
-                const audio = await voiceService.generateSpeech(contextualResponse);
-                
-                if (analysis.type === 'skip') {
-                    // Don't actually skip - redirect back to question
+            // Handle different response types
+            switch (response.type) {
+                case 'greeting':
+                case 'question':
+                    // These are handled by ready-for-question
+                    socket.emit('ai-acknowledgment', {
+                        text: response.text,
+                        audio: audio,
+                        moveToNext: true,
+                        waitTime: 1500
+                    });
+                    break;
+                    
+                case 'clarification':
+                case 'repeat':
                     socket.emit('ai-followup', {
-                        text: contextualResponse,
+                        text: response.text,
                         audio: audio,
                         isSpecialResponse: true,
-                        responseType: 'redirect'
+                        responseType: response.type
                     });
-                } else {
-                    // For repeat/clarify/unsure, stay on same question
+                    break;
+                    
+                case 'followup':
                     socket.emit('ai-followup', {
-                        text: contextualResponse,
+                        text: response.text,
                         audio: audio,
-                        isSpecialResponse: true,
-                        responseType: analysis.type
+                        isSpecialResponse: false
                     });
-                }
-                
-                socket.transcript.push({
-                    speaker: 'AI',
-                    text: contextualResponse,
-                    timestamp: new Date().toISOString()
-                });
-                
-                aiInterviewer.updateConversationHistory(socket.interviewId, 'AI', contextualResponse);
-                return;
+                    break;
+                    
+                case 'conclusion':
+                    socket.emit('ai-acknowledgment', {
+                        text: response.text,
+                        audio: audio,
+                        moveToNext: false,
+                        waitTime: 1000
+                    });
+                    // Complete interview after conclusion
+                    setTimeout(() => completeInterview(socket), 3000);
+                    break;
+                    
+                default:
+                    // For all other responses (acknowledgments, transitions)
+                    const shouldMoveNext = response.action === 'wait_for_response' ? false : true;
+                    socket.emit('ai-acknowledgment', {
+                        text: response.text,
+                        audio: audio,
+                        moveToNext: shouldMoveNext,
+                        waitTime: shouldMoveNext ? 3000 : 500
+                    });
+                    break;
             }
-        }
-        
-        // Normal response flow - check for follow-up questions
-        const followUp = await aiInterviewer.generateFollowUp(
-            socket.interviewId,
-            currentQuestion,
-            text
-        );
-        
-        if (followUp && Math.random() < appConfig.interview_guidelines.followUpFrequency) {
-            const followUpAudio = await voiceService.generateSpeech(followUp);
-            socket.emit('ai-followup', {
-                text: followUp,
-                audio: followUpAudio,
-                isSpecialResponse: false
-            });
             
             socket.transcript.push({
                 speaker: 'AI',
-                text: followUp,
+                text: response.text,
                 timestamp: new Date().toISOString()
             });
             
-            aiInterviewer.updateConversationHistory(socket.interviewId, 'AI', followUp);
-            socket.expectingFollowUp = true;
-        } else {
-            // For normal responses, check if the answer seems complete
-            const isSubstantialAnswer = text.length > 100 || text.includes('.') || 
-                                        text.split(' ').length > 15;
-            
-            if (isSubstantialAnswer) {
-                // Generate a simple, professional acknowledgment
-                const acknowledgmentPrompt = `Generate a brief, neutral acknowledgment (under 8 words).
-                Examples: "Thank you." "I understand." "Got it." "Noted."
-                Do NOT give feedback, opinions, or ask questions.`;
-                
-                let ack = "Thank you."; // Default fallback
-                
-                try {
-                    const openai = aiInterviewer.getOpenAIClient();
-                    if (openai) {
-                        const response = await openai.chat.completions.create({
-                            model: 'gpt-4o',
-                            messages: [
-                                { 
-                                    role: 'system', 
-                                    content: 'You are a professional interviewer. Give brief, neutral acknowledgments only.' 
-                                },
-                                { role: 'user', content: acknowledgmentPrompt }
-                            ],
-                            max_tokens: 15,
-                            temperature: 0.3 // Lower temperature for consistency
-                        });
-                        
-                        ack = response.choices[0].message.content.trim();
-                        // Ensure it's actually brief
-                        if (ack.split(' ').length > 8) {
-                            ack = "Thank you.";
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error generating acknowledgment:', error);
-                }
-                
-                const ackAudio = await voiceService.generateSpeech(ack);
-                
-                // Send acknowledgment and move to next question after a brief pause
-                socket.emit('ai-acknowledgment', {
-                    text: ack,
-                    audio: ackAudio,
-                    moveToNext: true,  // Always move to next question after acknowledging
-                    waitTime: 3000  // Wait 3 seconds after acknowledgment before next question
-                });
-                
-                socket.transcript.push({
-                    speaker: 'AI',
-                    text: ack,
-                    timestamp: new Date().toISOString()
-                });
-                
-                aiInterviewer.updateConversationHistory(socket.interviewId, 'AI', ack);
-            } else {
-                // For very short responses, wait for more
-                console.log('Short response received, waiting for candidate to continue...');
-                // Don't send any response - let them continue talking
-            }
+        } catch (error) {
+            console.error('Error processing response:', error);
+            socket.emit('error', { message: 'Failed to process response' });
         }
     });
     
@@ -1692,17 +1610,35 @@ async function completeInterview(socket) {
     interview.status = 'completed';
     interview.completedAt = new Date().toISOString();
     
-    // Create transcript text
-    const transcriptText = socket.transcript
-        .map(entry => `${entry.speaker}: ${entry.text}`)
-        .join('\n\n');
-    
-    // Get AI evaluation
-    const evaluation = await aiInterviewer.evaluateCandidate(transcriptText, interview.role, interview.jobDescription);
-    
     // Calculate duration
     const duration = new Date(interview.completedAt) - new Date(interview.startedAt);
     const durationMinutes = Math.floor(duration / 60000);
+    
+    // Get AI evaluation from orchestrator
+    let evaluation = null;
+    const orchestrator = getAIOrchestrator();
+    if (orchestrator) {
+        try {
+            const interviewData = orchestrator.getInterview(socket.interviewId);
+            if (interviewData) {
+                const evalResult = await orchestrator.evaluateInterview(interviewData);
+                evaluation = evalResult.evaluation;
+            }
+        } catch (error) {
+            console.error('Error getting AI evaluation:', error);
+            // Fallback to legacy evaluation if orchestrator fails
+            const transcriptText = socket.transcript
+                .map(entry => `${entry.speaker}: ${entry.text}`)
+                .join('\n\n');
+            evaluation = await aiInterviewer.evaluateCandidate(transcriptText, interview.role, interview.jobDescription);
+        }
+    } else {
+        // Fallback to legacy evaluation
+        const transcriptText = socket.transcript
+            .map(entry => `${entry.speaker}: ${entry.text}`)
+            .join('\n\n');
+        evaluation = await aiInterviewer.evaluateCandidate(transcriptText, interview.role, interview.jobDescription);
+    }
     
     // Save results
     const result = {
@@ -1724,7 +1660,7 @@ async function completeInterview(socket) {
     
     // Notify client
     const closing = `Thank you so much for your time today, ${interview.candidateName}. 
-    We've completed all the questions. Your responses have been recorded and will be reviewed by the Senbird team. 
+    We've completed all the questions. Your responses have been recorded and will be reviewed by the hiring team. 
     We'll be in touch soon with next steps. Have a great day!`;
     
     const closingAudio = await voiceService.generateSpeech(closing);
