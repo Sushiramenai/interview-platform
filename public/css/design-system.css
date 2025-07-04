@@ -2,14 +2,7 @@
 /* Brand Palette Implementation */
 
 :root {
-  /* Premium Green Palette - Award-Winning Design */
-  --forest-depth: #6B8E5A;  /* Deep forest green from image 1 */
-  --sage-mist: #9FB595;     /* Soft sage green from image 2 */
-  --forest-shadow: #5A7A4A; /* Darker variant for depth */
-  --sage-light: #B5C8AD;    /* Lighter variant for highlights */
-  --sage-whisper: #E8F0E6;  /* Ultra light for backgrounds */
-  
-  /* Original Palette - Heritage Colors */
+  /* Harmony Seeker Palette */
   --shadow-gray: #f7f7f7;
   --light-cream: #FCF6EC;
   --charcoal: #323232;
@@ -23,13 +16,13 @@
   --peach: #FFB380;
   --blush: #F8CECE;
   
-  /* Primary Colors - Premium Green System */
-  --primary: #6B8E5A;       /* Forest depth as primary */
-  --primary-dark: #5A7A4A;  /* Forest shadow */
-  --primary-light: #9FB595; /* Sage mist */
-  --accent: #CE2A2B;        /* Crimson for CTAs */
-  --accent-dark: #B82922;
-  --accent-light: #E54A3F;
+  /* Primary Colors - Updated for SenbirdTea */
+  --primary: #D23A2F;
+  --primary-dark: #B82922;
+  --primary-light: #E54A3F;
+  --tea-green: #4CAF50;
+  --tea-green-dark: #388E3C;
+  --tea-green-light: #66BB6A;
   
   /* Neutrals */
   --dark: #323232;
@@ -43,20 +36,18 @@
   --light: #FCF6EC;
   --white: #FFFFFF;
   
-  /* Semantic Colors - Green-Centric System */
-  --success: #6B8E5A;
+  /* Semantic Colors */
+  --success: #678948;
   --warning: #FFB380;
-  --info: #9FB595;
+  --info: #A7BD8F;
   --error: #CE2A2B;
   
-  /* Premium Shadows - Sophisticated Depth */
-  --shadow-sm: 0 2px 4px rgba(107, 142, 90, 0.06);
-  --shadow-md: 0 4px 16px rgba(107, 142, 90, 0.08);
-  --shadow-lg: 0 8px 32px rgba(107, 142, 90, 0.1);
-  --shadow-xl: 0 16px 64px rgba(107, 142, 90, 0.12);
-  --shadow-glow: 0 0 60px rgba(107, 142, 90, 0.2);
-  --shadow-ambient: 0 25px 50px -12px rgba(107, 142, 90, 0.25);
-  --shadow-premium: 0 20px 40px rgba(107, 142, 90, 0.15), 0 0 120px rgba(159, 181, 149, 0.15);
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(50, 50, 50, 0.08);
+  --shadow-md: 0 4px 12px rgba(50, 50, 50, 0.1);
+  --shadow-lg: 0 8px 24px rgba(50, 50, 50, 0.12);
+  --shadow-xl: 0 16px 48px rgba(50, 50, 50, 0.15);
+  --shadow-glow: 0 0 40px rgba(206, 42, 43, 0.15);
   
   /* Typography */
   --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -174,7 +165,7 @@ p {
 .text-warning { color: var(--warning); }
 .text-muted { color: var(--dark-50); }
 
-/* Buttons - Award-Winning Design */
+/* Buttons */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -192,30 +183,11 @@ p {
   position: relative;
   overflow: hidden;
   white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(107, 142, 90, 0.1);
-}
-
-.btn::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
-  transform: translate(-50%, -50%);
-  transition: width 0.6s, height 0.6s;
-}
-
-.btn:hover::before {
-  width: 300px;
-  height: 300px;
 }
 
 .btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(107, 142, 90, 0.2);
+  box-shadow: var(--shadow-lg);
 }
 
 .btn:active {
@@ -223,42 +195,28 @@ p {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--forest-depth), var(--forest-shadow));
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
   color: var(--white);
-  box-shadow: 0 4px 15px rgba(107, 142, 90, 0.3);
 }
 
 .btn-primary:hover {
   background: linear-gradient(135deg, var(--primary-light), var(--primary));
-  box-shadow: 0 6px 25px rgba(107, 142, 90, 0.4);
 }
 
 .btn-secondary {
   background: var(--white);
-  color: var(--forest-depth);
-  border: 2px solid var(--sage-light);
+  color: var(--dark);
+  border: 2px solid var(--dark-10);
 }
 
 .btn-secondary:hover {
-  border-color: var(--primary-light);
-  background: var(--sage-whisper);
+  border-color: var(--dark-20);
+  background: var(--shadow-gray);
 }
 
 .btn-success {
-  background: linear-gradient(135deg, var(--forest-depth), var(--forest-shadow));
+  background: linear-gradient(135deg, var(--success), #556B3A);
   color: var(--white);
-}
-
-.btn-white {
-  background: rgba(255, 255, 255, 0.9);
-  color: var(--forest-depth);
-  box-shadow: 0 4px 15px rgba(107, 142, 90, 0.2);
-  backdrop-filter: blur(10px);
-}
-
-.btn-white:hover {
-  background: var(--white);
-  box-shadow: 0 6px 25px rgba(107, 142, 90, 0.25);
 }
 
 .btn-ghost {
@@ -422,7 +380,7 @@ textarea.form-control {
 
 /* Loading States */
 .skeleton {
-  background: linear-gradient(90deg, var(--sage-whisper) 25%, var(--sage-light) 50%, var(--sage-whisper) 75%);
+  background: linear-gradient(90deg, var(--dark-05) 25%, var(--dark-10) 50%, var(--dark-05) 75%);
   background-size: 200% 100%;
   animation: skeleton-loading 1.5s infinite;
 }
@@ -430,72 +388,6 @@ textarea.form-control {
 @keyframes skeleton-loading {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
-}
-
-/* Premium Animations */
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
-}
-
-@keyframes pulse-glow {
-  0%, 100% { 
-    box-shadow: 0 0 0 0 rgba(107, 142, 90, 0.4);
-  }
-  50% { 
-    box-shadow: 0 0 0 20px rgba(107, 142, 90, 0);
-  }
-}
-
-@keyframes gradient-shift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-/* Premium Effects */
-.premium-glow {
-  position: relative;
-  z-index: 1;
-}
-
-.premium-glow::before {
-  content: '';
-  position: absolute;
-  inset: -2px;
-  background: linear-gradient(45deg, var(--forest-depth), var(--sage-mist), var(--forest-depth));
-  border-radius: inherit;
-  z-index: -1;
-  opacity: 0.5;
-  filter: blur(10px);
-  animation: gradient-shift 3s ease infinite;
-  background-size: 200% 200%;
-}
-
-/* Hover Lift Effect */
-.hover-lift {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.hover-lift:hover {
-  transform: translateY(-6px) scale(1.02);
-  box-shadow: 0 20px 40px rgba(107, 142, 90, 0.2);
-}
-
-/* Focus Glow */
-.focus-glow:focus {
-  animation: pulse-glow 2s infinite;
-}
-
-/* Smooth Scroll */
-html {
-  scroll-behavior: smooth;
-}
-
-/* Selection Color */
-::selection {
-  background: var(--sage-mist);
-  color: var(--forest-shadow);
 }
 
 .spinner {
