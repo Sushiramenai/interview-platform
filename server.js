@@ -755,6 +755,11 @@ app.post('/api/test-voice', async (req, res) => {
     }
 });
 
+// Test interview page
+app.get('/test-interview/:id', (req, res) => {
+    res.sendFile(path.join(__dirname, 'test-interview.html'));
+});
+
 // Interview room
 app.get('/interview/:id', (req, res) => {
     const interview = interviews.get(req.params.id);
@@ -1238,8 +1243,14 @@ io.on('connection', (socket) => {
         
         // Initialize AI Orchestrator for this interview
         const orchestrator = getAIOrchestrator();
+        console.log('AI Orchestrator status:', {
+            exists: !!orchestrator,
+            hasOpenAI: !!appConfig.openai_api_key
+        });
+        
         if (!orchestrator) {
-            socket.emit('error', { message: 'AI service not configured' });
+            console.error('AI orchestrator not available - check OpenAI API key');
+            socket.emit('error', { message: 'AI service not configured. Please check OpenAI API key.' });
             return;
         }
         
@@ -1260,8 +1271,23 @@ io.on('connection', (socket) => {
         
         // Get greeting from orchestrator
         try {
+            console.log('Getting greeting from orchestrator for interview:', interviewId);
             const response = await orchestrator.handleInteraction(interviewId);
-            const audio = await voiceService.generateSpeech(response.text);
+            console.log('Orchestrator response:', {
+                type: response.type,
+                phase: response.phase,
+                textLength: response.text?.length,
+                expectingResponse: response.expectingResponse
+            });
+            
+            let audio = null;
+            try {
+                audio = await voiceService.generateSpeech(response.text);
+                console.log('Audio generated:', !!audio);
+            } catch (audioError) {
+                console.error('Audio generation failed:', audioError);
+                // Continue without audio
+            }
             
             socket.emit('ai-speaks', {
                 text: response.text,
@@ -1271,6 +1297,8 @@ io.on('connection', (socket) => {
                 questionIndex: response.questionIndex || 0,
                 expectingResponse: response.expectingResponse
             });
+            
+            console.log('ai-speaks event emitted for greeting');
             
             // Add to transcript
             socket.transcript.push({
@@ -1318,7 +1346,13 @@ io.on('connection', (socket) => {
             });
             
             // Generate audio
-            const audio = await voiceService.generateSpeech(response.text);
+            let audio = null;
+            try {
+                audio = await voiceService.generateSpeech(response.text);
+            } catch (audioError) {
+                console.error('Audio generation failed:', audioError);
+                // Continue without audio
+            }
             
             // Send unified response to client
             socket.emit('ai-speaks', {

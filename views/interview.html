@@ -839,6 +839,10 @@
         let lastActivityTime = Date.now(); // Track last activity
         let interviewActive = false; // Track if interview is active
         
+        // Log initial state
+        console.log('🚀 Interview page loaded');
+        console.log('Interview ID:', interviewId);
+        
         // Initialize the interview
         init();
         
@@ -901,6 +905,7 @@
                 reconnectAttempts = 0;
                 
                 // Join interview
+                console.log('Joining interview with ID:', interviewId);
                 socket.emit('join-interview', { interviewId });
             });
             
@@ -936,84 +941,98 @@
                 socket.emit('pong');
             });
             
-            socket.on('interview-started', (data) => {
-                console.log('Interview started:', data);
-                totalQuestions = data.totalQuestions;
-                updateProgress(0);
-                interviewActive = true;
+            // Handle unified ai-speaks event from the orchestrator
+            socket.on('ai-speaks', (data) => {
+                console.log('AI speaks:', data);
                 updateActivity();
                 
-                // Start watchdog timer
-                startWatchdog();
-                
-                // Display greeting
-                displayAIMessage(data.greeting);
-                addToTranscript('AI Interviewer', data.greeting);
-                
-                // Play greeting audio
-                if (data.greetingAudio) {
-                    playAudio(data.greetingAudio);
+                // Handle different response types
+                switch (data.type) {
+                    case 'greeting':
+                        // Initial greeting
+                        interviewActive = true;
+                        startWatchdog();
+                        currentQuestionIndex = -1;
+                        questionRequested = false;
+                        break;
+                        
+                    case 'question':
+                        // New question
+                        if (data.questionIndex !== undefined) {
+                            currentQuestionIndex = data.questionIndex;
+                            updateProgress(currentQuestionIndex + 1);
+                            questionRequested = true;
+                        }
+                        break;
+                        
+                    case 'followup':
+                        // Follow-up question
+                        console.log('Follow-up question received');
+                        break;
+                        
+                    case 'acknowledgment':
+                        // Simple acknowledgment
+                        console.log('Acknowledgment received');
+                        break;
+                        
+                    case 'clarification':
+                    case 'repeat':
+                        // Special responses
+                        console.log('Special response:', data.type);
+                        break;
+                        
+                    case 'closing':
+                        // Interview closing
+                        console.log('Interview closing');
+                        break;
+                        
+                    case 'completed':
+                        // Interview completed through orchestrator
+                        console.log('Interview completed via orchestrator');
+                        stopListening();
+                        updateStatus('Interview Completed');
+                        break;
                 }
                 
-                // Mark that we're in the greeting phase
-                currentQuestionIndex = -1;
-                questionRequested = false;
-            });
-            
-            socket.on('ai-question', (data) => {
-                console.log('Question received:', data);
-                currentQuestionIndex = data.questionIndex;
-                updateProgress(currentQuestionIndex + 1);
-                questionRequested = true;  // Mark that we've asked a question
-                
-                displayAIMessage(data.question);
-                addToTranscript('AI Interviewer', data.question);
-                
-                if (data.audio) {
-                    playAudio(data.audio);
-                }
-                
-                // Update status
-                updateStatus('Question ' + (currentQuestionIndex + 1) + ' of ' + totalQuestions);
-            });
-            
-            socket.on('ai-followup', (data) => {
-                console.log('Follow-up received:', data);
+                // Display the message
                 displayAIMessage(data.text);
                 addToTranscript('AI Interviewer', data.text);
                 
+                // Play audio if available
                 if (data.audio) {
                     playAudio(data.audio);
-                }
-                
-                // Don't automatically move to next question for special responses
-                if (data.isSpecialResponse && data.responseType !== 'skip') {
-                    // For repeat/clarify/unsure, wait for another response
-                    console.log('Special response type:', data.responseType);
-                    // Audio queue will handle starting to listen again
-                }
-            });
-            
-            socket.on('ai-acknowledgment', (data) => {
-                displayAIMessage(data.text);
-                addToTranscript('AI Interviewer', data.text);
-                
-                if (data.audio) {
-                    playAudio(data.audio);
-                }
-                
-                // Only move to next question if explicitly told to
-                if (data.moveToNext) {
-                    console.log('Moving to next question after acknowledgment');
-                    const waitTime = data.waitTime || 1500;
-                    setTimeout(() => {
-                        socket.emit('ready-for-question');
-                    }, waitTime);
                 } else {
-                    // Just wait for candidate to continue
-                    console.log('Acknowledgment received, waiting for candidate to continue');
+                    // No audio, but we should still start listening after a delay
+                    console.log('No audio received, will start listening after delay');
+                    if (data.expectingResponse) {
+                        setTimeout(() => {
+                            if (!isListening) {
+                                startListening();
+                            }
+                        }, 2000); // Give user time to read the message
+                    }
+                }
+                
+                // Update phase-specific UI
+                if (data.phase) {
+                    updateStatus(`Phase: ${data.phase}`);
+                }
+                
+                // Set expectation for response
+                waitingForResponse = data.expectingResponse || false;
+                console.log('Waiting for response:', waitingForResponse);
+            });
+            
+            // Also add handler for interview-info event
+            socket.on('interview-info', (data) => {
+                console.log('Interview info:', data);
+                if (data.totalQuestions) {
+                    totalQuestions = data.totalQuestions;
+                    updateProgress(currentQuestionIndex + 1);
                 }
             });
+            
+            // Legacy event handlers removed - now using unified ai-speaks event
             
             socket.on('interview-completed', async (data) => {
                 console.log('Interview completed:', data);
@@ -1043,8 +1062,37 @@
             
             socket.on('error', (error) => {
                 console.error('Socket error:', error);
-                alert(error.message);
+                if (error.message) {
+                    alert(error.message);
+                    updateStatus('Error: ' + error.message);
+                }
             });
+            
+            // Add connect_error handler
+            socket.on('connect_error', (error) => {
+                console.error('❌ Connection error:', error.type, error.message);
+                updateStatus('Connection error - check console');
+            });
+            
+            // Debug: Log all events
+            const originalEmit = socket.emit;
+            socket.emit = function(...args) {
+                console.log('📤 Emitting:', args[0], args[1]);
+                return originalEmit.apply(socket, args);
+            };
+            
+            const originalOn = socket.on;
+            socket.on = function(event, handler) {
+                if (!['ping', 'pong'].includes(event)) {
+                    return originalOn.call(socket, event, function(...args) {
+                        if (event !== 'connect' && event !== 'disconnect') {
+                            console.log('📥 Received:', event, args[0]);
+                        }
+                        return handler.apply(this, args);
+                    });
+                }
+                return originalOn.call(socket, event, handler);
+            };
         }
         
         function initSpeechRecognition() {
@@ -1275,7 +1323,11 @@
         }
         
         function updateStatus(status) {
-            document.getElementById('statusText').textContent = status;
+            console.log('📊 Status:', status);
+            const statusEl = document.getElementById('statusText');
+            if (statusEl) {
+                statusEl.textContent = status;
+            }
         }
         
         function startTimeTracking() {

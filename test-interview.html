@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Interview Debug Test</title>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <h1>Interview Debug Test</h1>
+    <div id="status">Not connected</div>
+    <div id="messages"></div>
+    
+    <button onclick="testInterview()">Test Join Interview</button>
+    <button onclick="sendReady()">Send Ready</button>
+    
+    <script>
+        const socket = io();
+        const interviewId = window.location.pathname.split('/').pop();
+        
+        function log(message) {
+            const div = document.createElement('div');
+            div.textContent = `[${new Date().toISOString()}] ${message}`;
+            document.getElementById('messages').appendChild(div);
+            console.log(message);
+        }
+        
+        socket.on('connect', () => {
+            document.getElementById('status').textContent = 'Connected';
+            log('✅ Connected to server');
+        });
+        
+        socket.on('disconnect', () => {
+            document.getElementById('status').textContent = 'Disconnected';
+            log('❌ Disconnected from server');
+        });
+        
+        socket.on('error', (error) => {
+            log(`❌ Error: ${JSON.stringify(error)}`);
+        });
+        
+        socket.on('ai-speaks', (data) => {
+            log(`🤖 AI Speaks: ${data.type} - ${data.text?.substring(0, 50)}...`);
+            log(`   Phase: ${data.phase}, Has Audio: ${!!data.audio}, Expecting: ${data.expectingResponse}`);
+        });
+        
+        socket.on('interview-info', (data) => {
+            log(`📋 Interview Info: ${JSON.stringify(data)}`);
+        });
+        
+        function testInterview() {
+            log(`📤 Emitting join-interview with ID: ${interviewId}`);
+            socket.emit('join-interview', { interviewId });
+        }
+        
+        function sendReady() {
+            log('📤 Sending: "Yes, I\'m ready"');
+            socket.emit('candidate-response', { text: "Yes, I'm ready to begin." });
+        }
+        
+        // Auto-join on load
+        socket.on('connect', () => {
+            setTimeout(testInterview, 1000);
+        });
+    </script>
+</body>
+</html>
