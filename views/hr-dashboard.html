@@ -520,6 +520,40 @@
             margin-bottom: var(--space-lg) !important;
         }
         
+        /* Template Edit Button Visibility Fix */
+        .template-card-actions {
+            display: flex !important;
+            gap: 8px;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        .template-card-actions button {
+            cursor: pointer;
+            padding: 6px 12px;
+            font-size: 0.875rem;
+        }
+        
+        .template-card-actions .btn-sm {
+            background: var(--primary);
+            color: white;
+            border: 1px solid var(--primary);
+        }
+        
+        .template-card-actions .btn-sm:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+        
+        .template-card-actions .btn-sm:last-child {
+            background: #dc3545;
+            border-color: #dc3545;
+        }
+        
+        .template-card-actions .btn-sm:last-child:hover {
+            background: #c82333;
+        }
+        
         /* Template Cards */
         .template-card {
             background: var(--white);
@@ -1870,8 +1904,23 @@ Requirements:
         
         // Edit template
         function editTemplate(templateId) {
+            console.log('Edit template clicked:', templateId);
+            
+            // Check if templates are loaded
+            if (!templates || templates.length === 0) {
+                console.error('No templates loaded');
+                showToast('Please wait for templates to load', 'error');
+                return;
+            }
+            
             const template = templates.find(t => t.id === templateId);
-            if (!template) return;
+            if (!template) {
+                console.error('Template not found:', templateId);
+                showToast('Template not found', 'error');
+                return;
+            }
+            
+            console.log('Found template:', template);
             
             // Switch to form view
             document.getElementById('templatesListView').style.display = 'none';
@@ -1900,7 +1949,18 @@ Requirements:
             `).join('');
             
             templateQuestionCount = template.questions.length;
+            
+            // Scroll to form
+            document.getElementById('templateFormView').scrollIntoView({ behavior: 'smooth' });
+            
+            console.log('Template loaded for editing:', template);
+            showToast('Template loaded for editing', 'success');
         }
+        
+        // Make functions globally available for debugging
+        window.editTemplate = editTemplate;
+        window.deleteTemplate = deleteTemplate;
+        window.templates = templates;
         
         // Delete template
         async function deleteTemplate(templateId) {
