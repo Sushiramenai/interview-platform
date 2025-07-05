@@ -18,8 +18,8 @@
     <style>
         /* Interview Room Specific Styles */
         body {
-            background: linear-gradient(135deg, var(--light) 0%, var(--white) 100%);
-            color: var(--dark);
+            background: linear-gradient(135deg, var(--color-background) 0%, var(--color-surface-elevated) 100%);
+            color: var(--color-text-primary);
             height: 100vh;
             overflow: hidden;
             position: relative;
@@ -94,7 +94,7 @@
             align-items: center;
             justify-content: center;
             position: relative;
-            box-shadow: 0 20px 60px rgba(210, 58, 47, 0.2);
+            box-shadow: 0 20px 60px rgba(103, 137, 72, 0.2);
             transition: all var(--transition-base);
             border: 4px solid var(--primary);
             overflow: hidden;
@@ -123,7 +123,7 @@
         
         .ai-avatar.speaking {
             transform: scale(1.05);
-            box-shadow: 0 25px 80px rgba(210, 58, 47, 0.3);
+            box-shadow: 0 25px 80px rgba(103, 137, 72, 0.3);
             border-color: var(--primary-light);
         }
         
@@ -366,7 +366,7 @@
             background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 100%);
             transition: width var(--transition-slow);
             border-radius: var(--radius-full);
-            box-shadow: 0 0 10px rgba(210, 58, 47, 0.5);
+            box-shadow: 0 0 10px rgba(103, 137, 72, 0.5);
             position: relative;
         }
         
@@ -497,7 +497,7 @@
             align-items: center;
             justify-content: center;
             font-size: 3rem;
-            box-shadow: 0 20px 60px rgba(206, 42, 43, 0.3);
+            box-shadow: 0 20px 60px rgba(103, 137, 72, 0.3);
             animation: float 3s ease-in-out infinite;
         }
         
@@ -585,7 +585,7 @@
             position: absolute;
             inset: 0;
             border-radius: var(--radius-lg);
-            background: radial-gradient(circle at center, rgba(210, 58, 47, 0.1) 0%, transparent 70%);
+            background: radial-gradient(circle at center, rgba(103, 137, 72, 0.1) 0%, transparent 70%);
             pointer-events: none;
         }
         
@@ -597,7 +597,7 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            text-shadow: 0 0 30px rgba(210, 58, 47, 0.5);
+            text-shadow: 0 0 30px rgba(103, 137, 72, 0.5);
         }
         
         .score-label {

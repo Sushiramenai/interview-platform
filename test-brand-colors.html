@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brand Design System Test - Senbird</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@700&family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="public/css/design-system.css">
+    
+    <style>
+        body {
+            padding: var(--space-3xl);
+        }
+        .section {
+            margin-bottom: var(--space-3xl);
+        }
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--space-lg);
+            margin-bottom: var(--space-2xl);
+        }
+        .color-swatch {
+            height: 120px;
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: flex-end;
+            padding: var(--space-md);
+            font-weight: 600;
+            box-shadow: var(--shadow-md);
+        }
+    </style>
+</head>
+<body>
+    <!-- Hero Section -->
+    <div class="hero-gradient" style="padding: var(--space-3xl); margin: calc(var(--space-3xl) * -1); margin-bottom: var(--space-3xl);">
+        <h1 class="text-gradient">Senbird Brand Design System</h1>
+        <p style="font-size: var(--text-xl); color: var(--color-text-secondary);">Premium colors and components for the interview platform</p>
+    </div>
+
+    <!-- Color Palette -->
+    <section class="section">
+        <h2>Brand Color Palette</h2>
+        <div class="color-grid">
+            <div class="color-swatch" style="background: var(--brand-base); color: var(--brand-neutral-darkest);">
+                Base #FCF6EC
+            </div>
+            <div class="color-swatch" style="background: var(--brand-primary); color: white;">
+                Primary #678948
+            </div>
+            <div class="color-swatch" style="background: var(--brand-accent); color: white;">
+                Accent #CE2A2B
+            </div>
+            <div class="color-swatch" style="background: var(--brand-neutral-darkest); color: white;">
+                Neutral #323232
+            </div>
+        </div>
+    </section>
+
+    <!-- Typography -->
+    <section class="section">
+        <h2>Typography</h2>
+        <h1>Heading 1 - Display Font</h1>
+        <h2>Heading 2 - Display Font</h2>
+        <h3>Heading 3 - Display Font</h3>
+        <p>Body text using Noto Sans. This demonstrates the readability and elegance of our chosen typeface for extended reading.</p>
+    </section>
+
+    <!-- Buttons -->
+    <section class="section">
+        <h2>Buttons</h2>
+        <div style="display: flex; gap: var(--space-md); flex-wrap: wrap; margin-bottom: var(--space-lg);">
+            <button class="btn btn-primary">Primary Button</button>
+            <button class="btn btn-secondary">Secondary Button</button>
+            <button class="btn btn-accent">Accent Button</button>
+            <button class="btn btn-ghost">Ghost Button</button>
+        </div>
+        <div style="display: flex; gap: var(--space-md); flex-wrap: wrap;">
+            <button class="btn btn-primary btn-lg">Large Primary</button>
+            <button class="btn btn-primary btn-sm">Small Primary</button>
+            <button class="btn btn-icon btn-primary"><i class="fas fa-plus"></i></button>
+        </div>
+    </section>
+
+    <!-- Cards -->
+    <section class="section">
+        <h2>Cards</h2>
+        <div class="grid grid-3">
+            <div class="card">
+                <h3>Standard Card</h3>
+                <p>This is a standard card with the new brand colors and styling.</p>
+                <button class="btn btn-primary">Action</button>
+            </div>
+            <div class="card-premium">
+                <h3>Premium Card</h3>
+                <p>This card has enhanced styling with subtle green accents.</p>
+                <button class="btn btn-accent">Premium Action</button>
+            </div>
+            <div class="interview-card">
+                <h3>Interview Card</h3>
+                <p>Specialized card for interview-related content.</p>
+                <div style="display: flex; gap: var(--space-sm); margin-top: var(--space-md);">
+                    <span class="badge badge-primary">Active</span>
+                    <span class="badge badge-accent">Important</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Forms -->
+    <section class="section">
+        <h2>Form Elements</h2>
+        <div class="grid grid-2">
+            <div>
+                <div class="form-group">
+                    <label class="form-label">Standard Input</label>
+                    <input type="text" class="form-control" placeholder="Enter text here">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Premium Input</label>
+                    <input type="text" class="form-control input-premium" placeholder="Premium gradient border">
+                </div>
+            </div>
+            <div>
+                <div class="form-group">
+                    <label class="form-label">Textarea</label>
+                    <textarea class="form-control" placeholder="Enter your message"></textarea>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Badges and Status -->
+    <section class="section">
+        <h2>Badges & Status Indicators</h2>
+        <div style="display: flex; gap: var(--space-md); align-items: center; flex-wrap: wrap;">
+            <span class="badge badge-success">Success</span>
+            <span class="badge badge-warning">Warning</span>
+            <span class="badge badge-info">Info</span>
+            <span class="badge badge-error">Error</span>
+            <span class="badge badge-primary">Primary</span>
+            <span class="badge badge-accent">Accent</span>
+            <span class="badge badge-neutral">Neutral</span>
+        </div>
+        <div style="display: flex; gap: var(--space-lg); align-items: center; margin-top: var(--space-lg);">
+            <div style="display: flex; align-items: center; gap: var(--space-xs);">
+                <span class="status-indicator status-active"></span>
+                Active
+            </div>
+            <div style="display: flex; align-items: center; gap: var(--space-xs);">
+                <span class="status-indicator status-pending"></span>
+                Pending
+            </div>
+            <div style="display: flex; align-items: center; gap: var(--space-xs);">
+                <span class="status-indicator status-complete"></span>
+                Complete
+            </div>
+        </div>
+    </section>
+
+    <!-- Glass Effect -->
+    <section class="section">
+        <h2>Glass Effects</h2>
+        <div class="glass" style="padding: var(--space-xl); border-radius: var(--radius-lg);">
+            <h3>Glass Container</h3>
+            <p>This demonstrates the premium glass effect with the new brand colors.</p>
+        </div>
+    </section>
+
+    <!-- Table -->
+    <section class="section">
+        <h2>Premium Table</h2>
+        <table class="table-premium">
+            <thead>
+                <tr>
+                    <th>Candidate</th>
+                    <th>Position</th>
+                    <th>Score</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>John Doe</td>
+                    <td>Senior Developer</td>
+                    <td>92%</td>
+                    <td><span class="badge badge-success">Passed</span></td>
+                </tr>
+                <tr>
+                    <td>Jane Smith</td>
+                    <td>Product Manager</td>
+                    <td>88%</td>
+                    <td><span class="badge badge-primary">In Review</span></td>
+                </tr>
+                <tr>
+                    <td>Bob Johnson</td>
+                    <td>UX Designer</td>
+                    <td>95%</td>
+                    <td><span class="badge badge-success">Passed</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <!-- Loading States -->
+    <section class="section">
+        <h2>Loading States</h2>
+        <div style="display: flex; gap: var(--space-2xl); align-items: center;">
+            <div class="spinner"></div>
+            <div style="width: 200px;">
+                <div class="skeleton" style="height: 20px; margin-bottom: var(--space-sm);"></div>
+                <div class="skeleton" style="height: 20px; width: 70%;"></div>
+            </div>
+        </div>
+    </section>
+</body>
+</html>
